@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../profile/presentation/profile_page.dart';
+import '../../profile/presentation/profile_page.dart';
 import '../data/chat_repository.dart';
 import '../domain/chat.dart';
 import 'chat_page.dart';
