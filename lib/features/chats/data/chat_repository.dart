@@ -36,4 +36,18 @@ class ChatRepository {
     );
     return result as String;
   }
+
+  Future<String> createGroupChat({
+    required String title,
+    required List<String> userIds,
+  }) async {
+    final result = await _client.rpc(
+      'create_group_chat',
+      params: {
+        'p_title': title.trim(),
+        'p_user_ids': userIds,
+      },
+    );
+    return result as String;
+  }
 }
