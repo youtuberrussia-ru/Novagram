@@ -28,7 +28,7 @@ class _ConfigurationPage extends StatelessWidget {
               padding: const EdgeInsets.all(28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+                children: const [
                   const Icon(
                     Icons.forum_rounded,
                     size: 64,
@@ -37,7 +37,7 @@ class _ConfigurationPage extends StatelessWidget {
                   const SizedBox(height: 20),
                   const Text(
                     'Novagram',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
