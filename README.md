@@ -37,17 +37,15 @@ In this repository open **Settings → Secrets and variables → Actions → Var
 
 Do not paste these values into chat. The public client key is intended for client apps, but the database must be protected by the included RLS policies.
 
-### Database migration secrets
+### Database migration secret
 
-In **Settings → Secrets and variables → Actions → Secrets**, add these three secrets:
+In **Settings → Secrets and variables → Actions → Secrets**, add this secret:
 
-- `SUPABASE_ACCESS_TOKEN` — a Supabase personal access token.
-- `SUPABASE_PROJECT_REF` — the project reference from the Supabase project URL.
-- `SUPABASE_DB_PASSWORD` — the database password chosen when creating the Supabase project.
+- `SUPABASE_DB_URL` — the full PostgreSQL connection string copied from Supabase **Connect → Session pooler**. Replace the `[YOUR-PASSWORD]` placeholder locally with the database password, without square brackets. If the password contains URL-reserved characters, URL-encode them before saving the connection string.
 
-Never put these secrets in repository files or send them in chat. Then open **Actions → Apply Supabase database migrations → Run workflow**. This applies the versioned SQL migration in `supabase/migrations/`.
+Never put this secret in repository files or send it in chat. Then open **Actions → Apply Supabase database migrations → Run workflow**. This applies the versioned SQL migration in `supabase/migrations/`.
 
-If the schema was already run manually in SQL Editor, do not run this migration workflow until the migration history is reconciled; otherwise the CLI may report that the database schema already exists.
+The current migration workflow uses `SUPABASE_DB_URL`; it does not require `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, or `SUPABASE_DB_PASSWORD`.
 
 ## 3. Build the Android APK
 
