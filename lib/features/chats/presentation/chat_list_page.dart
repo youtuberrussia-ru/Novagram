@@ -210,7 +210,13 @@ class _ChatListPageState extends State<ChatListPage> {
                     ),
                   ),
                   title: Text(chat.title),
-                  subtitle: Text(chat.isGroup ? 'Группа' : 'Личный чат'),
+                  subtitle: Text(
+                    chat.lastMessage?.isNotEmpty == true
+                        ? chat.lastMessage!
+                        : (chat.isGroup ? 'Группа' : 'Личный чат'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   onTap: () => Navigator.push<void>(
                     context,
                     MaterialPageRoute(
