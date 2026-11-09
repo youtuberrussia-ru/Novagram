@@ -134,201 +134,209 @@ class _ChatListPageState extends State<ChatListPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Новая группа'),
-          content: SizedBox(
-            width: 380,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    maxLength: 50,
-                    decoration: const InputDecoration(
-                      labelText: 'Название группы',
-                      hintText: 'Например, Друзья',
+        builder: (dialogBodyContext, setDialogState) {
+          Future<void> searchMembers() async {
+            final query = queryController.text.trim();
+            if (query.length < 2) {
+              setDialogState(() {
+                dialogError = 'Введите минимум 2 символа для поиска.';
+              });
+              return;
+            }
+            setDialogState(() {
+              searching = true;
+              dialogError = null;
+            });
+            try {
+              final users = await _repo.searchUsers(query);
+              if (!dialogContext.mounted) return;
+              setDialogState(() => foundUsers = users);
+            } catch (error) {
+              if (dialogContext.mounted) {
+                setDialogState(() => dialogError = 'Ошибка поиска: $error');
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => searching = false);
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Новая группа'),
+            content: SizedBox(
+              width: 380,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      maxLength: 50,
+                      decoration: const InputDecoration(
+                        labelText: 'Название группы',
+                        hintText: 'Например, Друзья',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: queryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Найти участников',
-                            hintText: 'Имя или username',
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: queryController,
+                            decoration: const InputDecoration(
+                              labelText: 'Найти участников',
+                              hintText: 'Имя или username',
+                            ),
+                            onSubmitted: (_) => searchMembers(),
                           ),
-                          onSubmitted: (_) => searchMembers(),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          tooltip: 'Поиск',
+                          onPressed: searching ? null : searchMembers,
+                          icon: searching
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.search),
+                        ),
+                      ],
+                    ),
+                    if (selectedUsers.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text('Выбрано участников: ${selectedUsers.length}'),
+                    ],
+                    if (foundUsers.isNotEmpty)
+                      SizedBox(
+                        height: 220,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: foundUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = foundUsers[index];
+                            final id = user['id'] as String;
+                            final name = (user['display_name'] as String?) ??
+                                'Пользователь';
+                            final username =
+                                (user['username'] as String?) ?? '';
+                            return CheckboxListTile(
+                              dense: true,
+                              value: selectedUsers.contains(id),
+                              controlAffinity:
+                                  ListTileControlAffinity.leading,
+                              title: Text(name),
+                              subtitle: username.isEmpty
+                                  ? null
+                                  : Text('@$username'),
+                              onChanged: (checked) {
+                                setDialogState(() {
+                                  if (checked == true) {
+                                    selectedUsers.add(id);
+                                  } else {
+                                    selectedUsers.remove(id);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      const Padding(
+                        padding: EdgeInsets.only(top: 14),
+                        child: Text(
+                          'Найдите людей и отметьте тех, кого хотите добавить.',
+                          style: TextStyle(color: Colors.white54),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        tooltip: 'Поиск',
-                        onPressed: searching ? null : searchMembers,
-                        icon: searching
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.search),
+                    if (dialogError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        dialogError!,
+                        style: const TextStyle(color: Color(0xFFFF8791)),
                       ),
                     ],
-                  ),
-                  if (selectedUsers.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text('Выбрано участников: ${selectedUsers.length}'),
                   ],
-                  if (foundUsers.isNotEmpty)
-                    SizedBox(
-                      height: 220,
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: foundUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = foundUsers[index];
-                          final id = user['id'] as String;
-                          final name = (user['display_name'] as String?) ??
-                              'Пользователь';
-                          final username = (user['username'] as String?) ?? '';
-                          return CheckboxListTile(
-                            dense: true,
-                            value: selectedUsers.contains(id),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: Text(name),
-                            subtitle: username.isEmpty ? null : Text('@$username'),
-                            onChanged: (checked) {
-                              setDialogState(() {
-                                if (checked == true) {
-                                  selectedUsers.add(id);
-                                } else {
-                                  selectedUsers.remove(id);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.only(top: 14),
-                      child: Text(
-                        'Найдите людей и отметьте тех, кого хотите добавить.',
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                    ),
-                  if (dialogError != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      dialogError!,
-                      style: const TextStyle(color: Color(0xFFFF8791)),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: creating
-                  ? null
-                  : () => Navigator.pop(dialogContext),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: creating
-                  ? null
-                  : () async {
-                      final title = titleController.text.trim();
-                      if (title.length < 2 || title.length > 50) {
-                        setDialogState(() {
-                          dialogError =
-                              'Название должно содержать от 2 до 50 символов.';
-                        });
-                        return;
-                      }
-                      if (selectedUsers.isEmpty) {
-                        setDialogState(() {
-                          dialogError = 'Добавьте хотя бы одного участника.';
-                        });
-                        return;
-                      }
-                      setDialogState(() {
-                        creating = true;
-                        dialogError = null;
-                      });
-                      try {
-                        final id = await _repo.createGroupChat(
-                          title: title,
-                          userIds: selectedUsers.toList(),
-                        );
-                        if (!mounted || !dialogContext.mounted) return;
-                        Navigator.pop(dialogContext);
-                        await _refresh();
-                        if (!mounted) return;
-                        await Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatPage(chatId: id, title: title),
-                          ),
-                        );
-                      } catch (error) {
-                        if (dialogContext.mounted) {
+            actions: [
+              TextButton(
+                onPressed: creating
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Отмена'),
+              ),
+              FilledButton(
+                onPressed: creating
+                    ? null
+                    : () async {
+                        final title = titleController.text.trim();
+                        if (title.length < 2 || title.length > 50) {
                           setDialogState(() {
-                            dialogError = 'Не удалось создать группу: $error';
-                            creating = false;
+                            dialogError =
+                                'Название должно содержать от 2 до 50 символов.';
                           });
+                          return;
                         }
-                      }
-                    },
-              child: creating
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Создать'),
-            ),
-          ],
-        ),
+                        if (selectedUsers.isEmpty) {
+                          setDialogState(() {
+                            dialogError = 'Добавьте хотя бы одного участника.';
+                          });
+                          return;
+                        }
+                        setDialogState(() {
+                          creating = true;
+                          dialogError = null;
+                        });
+                        try {
+                          final id = await _repo.createGroupChat(
+                            title: title,
+                            userIds: selectedUsers.toList(),
+                          );
+                          if (!mounted || !dialogContext.mounted) return;
+                          Navigator.pop(dialogContext);
+                          await _refresh();
+                          if (!mounted) return;
+                          await Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ChatPage(chatId: id, title: title),
+                            ),
+                          );
+                        } catch (error) {
+                          if (dialogContext.mounted) {
+                            setDialogState(() {
+                              dialogError =
+                                  'Не удалось создать группу: $error';
+                              creating = false;
+                            });
+                          }
+                        }
+                      },
+                child: creating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Создать'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
     titleController.dispose();
     queryController.dispose();
-
-    Future<void> searchMembers() async {
-      final query = queryController.text.trim();
-      if (query.length < 2) {
-        setDialogState(() {
-          dialogError = 'Введите минимум 2 символа для поиска.';
-        });
-        return;
-      }
-      setDialogState(() {
-        searching = true;
-        dialogError = null;
-      });
-      try {
-        final users = await _repo.searchUsers(query);
-        if (!dialogContext.mounted) return;
-        setDialogState(() => foundUsers = users);
-      } catch (error) {
-        if (dialogContext.mounted) {
-          setDialogState(() => dialogError = 'Ошибка поиска: $error');
-        }
-      } finally {
-        if (dialogContext.mounted) {
-          setDialogState(() => searching = false);
-        }
-      }
-    }
   }
 
   @override
