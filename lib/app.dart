@@ -28,22 +28,22 @@ class _ConfigurationPage extends StatelessWidget {
               padding: const EdgeInsets.all(28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(
+                children: [
+                  const Icon(
                     Icons.forum_rounded,
                     size: 64,
                     color: Color(0xFF8B7CFF),
                   ),
-                  SizedBox(height: 20),
-                  Text(
+                  const SizedBox(height: 20),
+                  const Text(
                     'Novagram',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 12),
-                  Text(
+                  const SizedBox(height: 12),
+                  const Text(
                     'Для запуска подключите Supabase: добавьте '
                     'SUPABASE_URL и SUPABASE_PUBLISHABLE_KEY '
                     'в GitHub Actions Variables и запустите сборку.',
