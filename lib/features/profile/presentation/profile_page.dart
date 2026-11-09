@@ -18,7 +18,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _saving = false;
   bool _loggingOut = false;
   String? _error;
-  String? _phone;
+  String? _email;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -38,7 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     final user = _client.auth.currentUser;
-    _phone = user?.phone;
+    _email = user?.email;
     if (user == null) {
       setState(() => _loading = false);
       return;
@@ -148,7 +148,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 12),
                   Center(
                     child: Text(
-                      _phone ?? 'Аккаунт Novagram',
+                      _email ?? 'Аккаунт Novagram',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
