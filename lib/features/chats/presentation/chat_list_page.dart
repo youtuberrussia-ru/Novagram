@@ -134,7 +134,7 @@ class _ChatListPageState extends State<ChatListPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogBodyContext, setDialogState) {
+        builder: (_, setDialogState) {
           Future<void> searchMembers() async {
             final query = queryController.text.trim();
             if (query.length < 2) {
