@@ -4,12 +4,14 @@ class Chat {
     required this.title,
     required this.isGroup,
     required this.updatedAt,
+    this.lastMessage,
   });
 
   final String id;
   final String title;
   final bool isGroup;
   final DateTime updatedAt;
+  final String? lastMessage;
 
   factory Chat.fromRpcRow(Map<String, dynamic> row) {
     final isGroup = row['is_group'] as bool? ?? false;
@@ -29,6 +31,7 @@ class Chat {
       isGroup: isGroup,
       updatedAt: DateTime.tryParse(row['updated_at'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
+      lastMessage: (row['last_message'] as String?)?.trim(),
     );
   }
 }
