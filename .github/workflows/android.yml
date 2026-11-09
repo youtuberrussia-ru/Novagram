@@ -5,9 +5,13 @@ on:
   push:
     branches: [main]
     paths:
-      - '**.dart'
+      - 'lib/**.dart'
       - 'pubspec.yaml'
       - '.github/workflows/android.yml'
+
+concurrency:
+  group: novagram-android-build
+  cancel-in-progress: true
 
 permissions:
   contents: read
