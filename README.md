@@ -21,12 +21,14 @@ This is an early foundation, not a finished commercial messenger. Advanced group
 1. Create a Supabase project.
 2. In **Authentication → Providers → Phone**, enable phone authentication.
 3. Configure an SMS provider. SMS delivery may have a cost.
-4. Open **SQL Editor**, paste the complete contents of [supabase/schema.sql](supabase/schema.sql), and run it.
+4. The database schema can be installed automatically from GitHub Actions using the **Apply Supabase database migrations** workflow. Add the three required Supabase secrets described below, then run that workflow. You do not need to paste SQL into the dashboard.
 5. In project API settings, copy the project URL and the public publishable/publishable key.
 
 Only use the public client key in the app. Never put the Supabase `service_role` key in the repository, GitHub Actions variables, or APK.
 
 ## 2. Configure GitHub Actions
+
+### APK build variables
 
 In this repository open **Settings → Secrets and variables → Actions → Variables** and add:
 
@@ -34,6 +36,18 @@ In this repository open **Settings → Secrets and variables → Actions → Var
 - `SUPABASE_PUBLISHABLE_KEY` — your public publishable/publishable key.
 
 Do not paste these values into chat. The public client key is intended for client apps, but the database must be protected by the included RLS policies.
+
+### Database migration secrets
+
+In **Settings → Secrets and variables → Actions → Secrets**, add these three secrets:
+
+- `SUPABASE_ACCESS_TOKEN` — a Supabase personal access token.
+- `SUPABASE_PROJECT_REF` — the project reference from the Supabase project URL.
+- `SUPABASE_DB_PASSWORD` — the database password chosen when creating the Supabase project.
+
+Never put these secrets in repository files or send them in chat. Then open **Actions → Apply Supabase database migrations → Run workflow**. This applies the versioned SQL migration in `supabase/migrations/`.
+
+If the schema was already run manually in SQL Editor, do not run this migration workflow until the migration history is reconciled; otherwise the CLI may report that the database schema already exists.
 
 ## 3. Build the Android APK
 
