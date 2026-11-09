@@ -321,9 +321,9 @@ begin
     raise exception 'Group name must be between 2 and 50 characters';
   end if;
 
-  select count(distinct user_id) into v_user_count
-  from unnest(coalesce(p_user_ids, array[]::uuid[])) as user_id
-  where user_id <> v_me;
+  select count(distinct selected.user_id) into v_user_count
+  from unnest(coalesce(p_user_ids, array[]::uuid[])) as selected(user_id)
+  where selected.user_id <> v_me;
 
   if v_user_count < 1 or v_user_count > 49 then
     raise exception 'Choose between 1 and 49 other members';
