@@ -97,14 +97,14 @@ on public.chat_members for select to authenticated using (user_id = auth.uid());
 drop policy if exists "Members read messages" on public.messages;
 create policy "Members read messages"
 on public.messages for select to authenticated
-using (exists (select 1 from public.chat_members m where m.chat_id = chat_id and m.user_id = auth.uid()));
+using (exists (select 1 from public.chat_members m where m.chat_id = messages.chat_id and m.user_id = auth.uid()));
 
 drop policy if exists "Members send messages" on public.messages;
 create policy "Members send messages"
 on public.messages for insert to authenticated
 with check (
   sender_id = auth.uid()
-  and exists (select 1 from public.chat_members m where m.chat_id = chat_id and m.user_id = auth.uid())
+  and exists (select 1 from public.chat_members m where m.chat_id = messages.chat_id and m.user_id = auth.uid())
 );
 
 create or replace function public.search_profiles(p_query text)
@@ -121,7 +121,7 @@ $$;
 
 create or replace function public.create_direct_chat(p_other_user uuid)
 returns uuid
-language plpgsql security invoker set search_path = public as $$
+language plpgsql security definer set search_path = public as $
 declare
   v_me uuid := auth.uid();
   v_chat_id uuid;
