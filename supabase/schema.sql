@@ -234,7 +234,9 @@ returns table(
   is_group boolean,
   updated_at timestamptz,
   other_display_name text,
-  other_username text
+  other_username text,
+  last_message text,
+  last_message_at timestamptz
 )
 language sql
 stable
@@ -247,7 +249,9 @@ as $$
     c.is_group,
     c.updated_at,
     case when c.is_group then null else p.display_name end,
-    case when c.is_group then null else p.username end
+    case when c.is_group then null else p.username end,
+    latest.body,
+    latest.created_at
   from public.chats c
   join public.chat_members mine
     on mine.chat_id = c.id and mine.user_id = auth.uid()
@@ -257,9 +261,38 @@ as $$
     and not c.is_group
   left join public.profiles p
     on p.id = other_member.user_id
+  left join lateral (
+    select m.body, m.created_at
+    from public.messages m
+    where m.chat_id = c.id
+    order by m.created_at desc
+    limit 1
+  ) latest on true
   where auth.uid() is not null
   order by c.updated_at desc;
 $$;
 
 revoke all on function public.get_my_chats() from public;
 grant execute on function public.get_my_chats() to authenticated;
+
+
+-- Keep chat ordering fresh whenever a message is sent.
+create or replace function public.touch_chat_after_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.chats
+  set updated_at = new.created_at
+  where id = new.chat_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_touch_chat on public.messages;
+create trigger messages_touch_chat
+after insert on public.messages
+for each row execute function public.touch_chat_after_message();
+
