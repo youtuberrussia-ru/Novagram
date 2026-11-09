@@ -1,23 +1,226 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../auth/data/auth_service.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final _name = TextEditingController();
+  final _username = TextEditingController();
+  final _bio = TextEditingController();
+  bool _loading = true;
+  bool _saving = false;
+  bool _loggingOut = false;
+  String? _error;
+  String? _phone;
+
+  SupabaseClient get _client => Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _username.dispose();
+    _bio.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = _client.auth.currentUser;
+    _phone = user?.phone;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final row = await _client
+          .from('profiles')
+          .select('display_name, username, bio')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (row != null) {
+        _name.text = (row['display_name'] as String?) ?? '';
+        _username.text = (row['username'] as String?) ?? '';
+        _bio.text = (row['bio'] as String?) ?? '';
+      } else {
+        _name.text = 'Пользователь';
+      }
+    } catch (error) {
+      _error = 'Не удалось загрузить профиль: $error';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final user = _client.auth.currentUser;
+    final name = _name.text.trim();
+    final username = _username.text.trim().toLowerCase();
+    final bio = _bio.text.trim();
+
+    if (user == null) return;
+    if (name.length < 2 || name.length > 40) {
+      setState(() => _error = 'Имя должно содержать от 2 до 40 символов.');
+      return;
+    }
+    if (username.isNotEmpty &&
+        !RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(username)) {
+      setState(() => _error =
+          'Username: 3–24 символа, только латинские буквы, цифры и _.');
+      return;
+    }
+    if (bio.length > 160) {
+      setState(() => _error = 'Описание не должно превышать 160 символов.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _client.from('profiles').upsert({
+        'id': user.id,
+        'display_name': name,
+        'username': username.isEmpty ? null : username,
+        'bio': bio,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Профиль сохранён')),
+      );
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.code == '23505'
+            ? 'Этот username уже занят. Выберите другой.'
+            : 'Не удалось сохранить профиль: ${error.message}';
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Ошибка сохранения: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _logout() async {
+    setState(() => _loggingOut = true);
+    try {
+      await AuthService(_client).signOut();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _loggingOut = false;
+          _error = 'Не удалось выйти: $error';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-    return Scaffold(appBar: AppBar(title: const Text('Профиль')), body: Padding(
-      padding: const EdgeInsets.all(24), child: Column(children: [
-        const CircleAvatar(radius: 42, child: Icon(Icons.person, size: 42)),
-        const SizedBox(height: 16),
-        Text(user?.phone ?? 'Номер не указан', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8), const Text('Аккаунт Novagram'), const Spacer(),
-        SizedBox(width: double.infinity, child: OutlinedButton.icon(
-          onPressed: () async { await AuthService(Supabase.instance.client).signOut(); if (context.mounted) Navigator.of(context).pop(); },
-          icon: const Icon(Icons.logout), label: const Text('Выйти из аккаунта'),
-        )),
-      ]),
-    ));
+    return Scaffold(
+      appBar: AppBar(title: const Text('Мой профиль')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(22),
+                children: [
+                  const Center(
+                    child: CircleAvatar(
+                      radius: 42,
+                      child: Icon(Icons.person, size: 42),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      _phone ?? 'Аккаунт Novagram',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  TextField(
+                    controller: _name,
+                    maxLength: 40,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Отображаемое имя',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _username,
+                    maxLength: 24,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      hintText: 'novagram_user',
+                      prefixIcon: Icon(Icons.alternate_email),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, top: 2),
+                    child: Text(
+                      'Можно оставить пустым. Username должен быть уникальным.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _bio,
+                    maxLength: 160,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'О себе',
+                      alignLabelWithHint: true,
+                      prefixIcon: Icon(Icons.notes),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Color(0xFFFF8791)),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Сохранить профиль'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _loggingOut ? null : _logout,
+                    icon: const Icon(Icons.logout),
+                    label: Text(
+                      _loggingOut ? 'Выходим…' : 'Выйти из аккаунта',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
   }
 }
