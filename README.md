@@ -1,64 +1,46 @@
-# Novagram — starter 0.1.0
+# Novagram — Flutter messenger foundation
 
-Novagram is a modular Flutter messenger foundation. This starter establishes phone-number
-authentication, a Supabase-backed profile/chat data model, private database policies,
-and a GitHub Actions Android APK build.
+Novagram is an Android-first Flutter messenger foundation using Supabase for phone OTP authentication, profiles, direct chats, and realtime text messages.
 
-## Current milestone
+## Implemented in this milestone
 
-- Phone-number sign-in with SMS OTP through Supabase Auth.
+- Phone-number sign-in with SMS one-time codes through Supabase Auth.
 - Auth state gate and sign-out.
-- Profile records created automatically when a user registers.
-- Chat list, user search, direct-chat creation, and realtime message stream foundation.
+- Automatic profile creation after a new account is created.
+- Chat list, profile screen, user search, and direct-chat creation.
+- Realtime text-message stream.
 - PostgreSQL schema and Row Level Security policies.
-- Android APK build workflow.
+- GitHub Actions workflow that generates Android platform files when needed, analyzes the Dart project, builds a debug APK, and uploads it as an artifact.
 
-This is a foundation, not a claim that every planned feature is already implemented.
-Voice/video calls, push notifications, file uploads, end-to-end encryption, channels,
-AI features, and the 1,000-feature roadmap are later modules.
+This is an early foundation, not a finished commercial messenger. Group administration, media, voice/video calls, push notifications, end-to-end encryption, moderation, and AI tools are not implemented yet.
 
-## 1. Create a Supabase project
+## 1. Configure Supabase
 
-1. Create a project in Supabase.
+1. Create a Supabase project.
 2. In **Authentication → Providers → Phone**, enable phone authentication.
-3. Configure an SMS provider in Supabase. SMS delivery may have a cost.
-4. Open **SQL Editor**, paste `supabase/schema.sql`, and run it.
-5. Copy the project URL and the publishable/anon client key from project API settings.
+3. Configure an SMS provider. SMS delivery may have a cost.
+4. Open **SQL Editor**, paste the complete contents of [supabase/schema.sql](supabase/schema.sql), and run it.
+5. In project API settings, copy the project URL and the public publishable/anon key.
 
-## 2. Run locally
+Only use the public client key in the app. Never put the Supabase `service_role` key in the repository, GitHub Actions variables, or APK.
 
-Install Flutter, then run:
+## 2. Configure GitHub Actions
 
-```bash
-flutter create --platforms=android,ios,web .
-flutter pub get
-flutter run \
-  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
-```
+In this repository open **Settings → Secrets and variables → Actions → Variables** and add:
 
-Use the public anon/publishable key only. Never put the `service_role` key in the app,
-GitHub repository, or APK.
+- `SUPABASE_URL` — your Supabase project URL.
+- `SUPABASE_ANON_KEY` — your public publishable/anon key.
 
-## 3. Build APK using GitHub Actions
+Do not paste these values into chat. The public client key is intended for client apps, but the database must be protected by the included RLS policies.
 
-1. Upload this project to a GitHub repository.
-2. Open **Actions** and run **Build Novagram Android APK**.
-3. Download `novagram-debug-apk` from the completed workflow run's Artifacts.
-4. The workflow accepts `SUPABASE_URL` and `SUPABASE_ANON_KEY` as repository Actions
-   variables. Add them under **Settings → Secrets and variables → Actions → Variables**.
-   The values are passed as Dart compile-time definitions.
+## 3. Build the Android APK
 
-If variables are not configured, the app will still build but show the setup screen.
+1. Open the **Actions** tab.
+2. Select **Build Novagram Android APK**.
+3. Run the workflow with **Run workflow**, or push a Dart change to `main`.
+4. When the run finishes, open it and download the `novagram-debug-apk` artifact.
 
-## Security notes
-
-- Database tables have Row Level Security enabled.
-- Users can only read chats they belong to and messages in those chats.
-- The client never receives the Supabase service-role key.
-- SMS OTP is account verification, not end-to-end encryption.
-- Do not advertise end-to-end encryption until a separately reviewed cryptographic
-  protocol and key management implementation exist.
+The workflow creates the Android platform folder if it is absent, runs `flutter pub get`, `flutter analyze`, and builds a debug APK.
 
 ## Project structure
 
@@ -86,3 +68,10 @@ supabase/
 .github/workflows/
   android.yml
 ```
+
+## Security and limitations
+
+- Database access is protected with Row Level Security.
+- SMS verification confirms control of a phone number; it is not end-to-end encryption.
+- Do not describe messages as end-to-end encrypted until a separately reviewed cryptographic protocol and key-management system are implemented.
+- Configure Supabase Auth rate limits and SMS provider limits before inviting real users.
