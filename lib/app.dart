@@ -21,8 +21,8 @@ class _ConfigurationPage extends StatelessWidget {
   const _ConfigurationPage();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: const SafeArea(
+  Widget build(BuildContext context) => const Scaffold(
+        body: SafeArea(
           child: Center(
             child: Padding(
               padding: EdgeInsets.all(28),
