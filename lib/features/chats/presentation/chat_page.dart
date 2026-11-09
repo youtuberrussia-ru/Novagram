@@ -93,6 +93,50 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> _showMessageActions(Map<String, dynamic> message) async {
+    final messageId = message['id'] as String?;
+    if (messageId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Удалить сообщение?'),
+        content: const Text('Сообщение будет удалено для всех участников чата.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _client
+          .from('messages')
+          .delete()
+          .eq('id', messageId)
+          .eq('sender_id', _myId);
+      final mediaPath = message['media_path'] as String?;
+      if (mediaPath != null) {
+        try {
+          await _client.storage.from('chat-media').remove([mediaPath]);
+        } catch (_) {
+          // The message is already deleted; a stale private object is harmless.
+        }
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось удалить сообщение: $error')),
+        );
+      }
+    }
+  }
+
   Widget _messageBubble(Map<String, dynamic> message) {
     final mine = message['sender_id'] == _myId;
     final body = (message['body'] as String?) ?? '';
@@ -104,9 +148,11 @@ class _ChatPageState extends State<ChatPage> {
         : '${time.toLocal().hour.toString().padLeft(2, '0')}:'
             '${time.toLocal().minute.toString().padLeft(2, '0')}';
 
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+    return GestureDetector(
+      onLongPress: mine ? () => _showMessageActions(message) : null,
+      child: Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
         constraints: const BoxConstraints(maxWidth: 310),
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         padding: const EdgeInsets.fromLTRB(14, 10, 12, 7),
@@ -135,6 +181,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
