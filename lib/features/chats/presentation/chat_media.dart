@@ -306,7 +306,7 @@ class _VoicePlayerState extends State<_VoicePlayer> {
                             ? 0.0
                             : (position.inMilliseconds /
                                     duration.inMilliseconds)
-                                .clamp(0.0, 1.0);
+                                .clamp(0.0, 1.0).toDouble();
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
