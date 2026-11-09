@@ -217,3 +217,49 @@ exception
   when undefined_object then null;
 end
 $$;
+
+
+-- Allow each signed-in user to create only their own profile row.
+drop policy if exists "Users insert own profile" on public.profiles;
+create policy "Users insert own profile"
+on public.profiles for insert to authenticated
+with check (auth.uid() = id);
+
+-- Return a personalized title for direct chats without exposing phone numbers
+-- or allowing clients to inspect other members' private membership rows.
+create or replace function public.get_my_chats()
+returns table(
+  id uuid,
+  title text,
+  is_group boolean,
+  updated_at timestamptz,
+  other_display_name text,
+  other_username text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    c.id,
+    c.title,
+    c.is_group,
+    c.updated_at,
+    case when c.is_group then null else p.display_name end,
+    case when c.is_group then null else p.username end
+  from public.chats c
+  join public.chat_members mine
+    on mine.chat_id = c.id and mine.user_id = auth.uid()
+  left join public.chat_members other_member
+    on other_member.chat_id = c.id
+    and other_member.user_id <> auth.uid()
+    and not c.is_group
+  left join public.profiles p
+    on p.id = other_member.user_id
+  where auth.uid() is not null
+  order by c.updated_at desc;
+$$;
+
+revoke all on function public.get_my_chats() from public;
+grant execute on function public.get_my_chats() to authenticated;
