@@ -86,6 +86,46 @@ class _ChatMediaComposerState extends State<ChatMediaComposer> {
     }
   }
 
+  Future<void> _pickPhoto() async {
+    if (_busy || _recording) return;
+    try {
+      final photo = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (photo == null) return;
+      final file = File(photo.path);
+      if (await file.length() > 15 * 1024 * 1024) {
+        _show('Фото превышает лимит 15 МБ');
+        return;
+      }
+      final extension = photo.path.split('.').last.toLowerCase();
+      final mime = switch (extension) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'heic' || 'heif' => 'image/heic',
+        _ => 'image/jpeg',
+      };
+      setState(() => _busy = true);
+      await _uploadAndSend(
+        file,
+        type: 'image',
+        body: 'Фотография',
+        contentType: mime,
+        extension: extension == 'png' || extension == 'webp' ||
+                extension == 'heic' || extension == 'heif'
+            ? extension
+            : 'jpg',
+      );
+    } catch (error) {
+      _show('Не удалось отправить фото: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _recordCircle() async {
     if (_busy || _recording) return;
     try {
@@ -164,6 +204,11 @@ class _ChatMediaComposerState extends State<ChatMediaComposer> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
+          tooltip: 'Отправить фото',
+          onPressed: _busy || _recording ? null : _pickPhoto,
+          icon: const Icon(Icons.photo_outlined),
+        ),
+        IconButton(
           tooltip: _recording ? 'Остановить и отправить' : 'Записать голосовое',
           onPressed: _busy
               ? null
@@ -234,6 +279,25 @@ class _ChatMediaBubbleState extends State<ChatMediaBubble> {
         }
         if (widget.type == 'voice') {
           return _VoicePlayer(url: snapshot.data!);
+        }
+        if (widget.type == 'image') {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              snapshot.data!,
+              width: 220,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) => progress == null
+                  ? child
+                  : const SizedBox(
+                      width: 220,
+                      height: 160,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+              errorBuilder: (context, error, stack) =>
+                  const SizedBox(width: 220, child: Text('Фото недоступно')),
+            ),
+          );
         }
         return _CirclePlayer(url: snapshot.data!);
       },
