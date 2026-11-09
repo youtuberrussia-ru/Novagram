@@ -36,6 +36,10 @@ jobs:
             flutter create --platforms=android --project-name novagram .
           fi
 
+      - name: Add runtime permissions
+        run: |
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.RECORD_AUDIO" />' android/app/src/main/AndroidManifest.xml
+
       - name: Install dependencies
         run: flutter pub get
 
