@@ -12,6 +12,7 @@ Novagram is a Flutter messenger using Supabase for email/password authentication
 - Voice-message recording, private upload, and playback.
 - Short video-circle recording with the front camera and in-chat playback.
 - Private photo attachments from the gallery with in-chat previews.
+- Deletion of your own messages for all chat participants.
 - PostgreSQL migrations and Row Level Security policies.
 - GitHub Actions debug APK build.
 
@@ -23,6 +24,7 @@ Novagram is a Flutter messenger using Supabase for email/password authentication
    - `20261109000000_initial_schema.sql`
    - `20261110000000_chat_media.sql`
    - `20261111000000_chat_images.sql`
+   - `20261112000000_message_delete.sql`
 4. The media migration creates a private `chat-media` Storage bucket. Do not make this bucket public.
 
 Email authentication does not require an SMS provider. Never put a database password or service-role key in app code, the APK, or a public repository.
