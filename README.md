@@ -20,7 +20,7 @@ This is an early foundation, not a finished commercial messenger. Group administ
 2. In **Authentication → Providers → Phone**, enable phone authentication.
 3. Configure an SMS provider. SMS delivery may have a cost.
 4. Open **SQL Editor**, paste the complete contents of [supabase/schema.sql](supabase/schema.sql), and run it.
-5. In project API settings, copy the project URL and the public publishable/anon key.
+5. In project API settings, copy the project URL and the public publishable/publishable key.
 
 Only use the public client key in the app. Never put the Supabase `service_role` key in the repository, GitHub Actions variables, or APK.
 
@@ -29,7 +29,7 @@ Only use the public client key in the app. Never put the Supabase `service_role`
 In this repository open **Settings → Secrets and variables → Actions → Variables** and add:
 
 - `SUPABASE_URL` — your Supabase project URL.
-- `SUPABASE_ANON_KEY` — your public publishable/anon key.
+- `SUPABASE_PUBLISHABLE_KEY` — your public publishable/publishable key.
 
 Do not paste these values into chat. The public client key is intended for client apps, but the database must be protected by the included RLS policies.
 
