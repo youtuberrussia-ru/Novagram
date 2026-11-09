@@ -20,7 +20,7 @@ Novagram is a Flutter messenger using Supabase for email/password authentication
 
 1. In **Authentication → Providers → Email**, enable Email.
 2. Add GitHub Actions variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
-3. Apply both SQL files in `supabase/migrations/` in chronological order using the Supabase SQL Editor:
+3. Apply all four SQL files in `supabase/migrations/` in chronological order using the Supabase SQL Editor:
    - `20261109000000_initial_schema.sql`
    - `20261110000000_chat_media.sql`
    - `20261111000000_chat_images.sql`
