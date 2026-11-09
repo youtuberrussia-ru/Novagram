@@ -1,61 +1,218 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({required this.chatId, required this.title, super.key});
-  final String chatId, title;
+
+  final String chatId;
+  final String title;
+
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
+
 class _ChatPageState extends State<ChatPage> {
   final _text = TextEditingController();
   final _scroll = ScrollController();
-  bool _sending = false;
+  final _focus = FocusNode();
   late final String _myId;
+  late final Stream<List<Map<String, dynamic>>> _messages;
+  bool _sending = false;
+  bool _autoScrollPending = false;
+
+  SupabaseClient get _client => Supabase.instance.client;
+
   @override
-  void initState() { super.initState(); _myId = Supabase.instance.client.auth.currentUser!.id; }
+  void initState() {
+    super.initState();
+    _myId = _client.auth.currentUser!.id;
+    _messages = _client
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('chat_id', widget.chatId)
+        .order('created_at');
+  }
+
   @override
-  void dispose() { _text.dispose(); _scroll.dispose(); super.dispose(); }
+  void dispose() {
+    _text.dispose();
+    _scroll.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _scheduleScroll() {
+    if (_autoScrollPending) return;
+    _autoScrollPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoScrollPending = false;
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   Future<void> _send() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
+    if (body.length > 10000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сообщение слишком длинное')),
+      );
+      return;
+    }
+
     setState(() => _sending = true);
     try {
-      await Supabase.instance.client.from('messages').insert({'chat_id': widget.chatId, 'sender_id': _myId, 'body': body});
+      await _client.from('messages').insert({
+        'chat_id': widget.chatId,
+        'sender_id': _myId,
+        'body': body,
+      });
       _text.clear();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось отправить сообщение: $e')));
-    } finally { if (mounted) setState(() => _sending = false); }
+      _focus.requestFocus();
+    } on PostgrestException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось отправить: ${error.message}')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка отправки: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
+
+  Widget _messageBubble(Map<String, dynamic> message) {
+    final mine = message['sender_id'] == _myId;
+    final body = (message['body'] as String?) ?? '';
+    final time = DateTime.tryParse(message['created_at'] as String? ?? '');
+    final timeLabel = time == null
+        ? ''
+        : '${time.toLocal().hour.toString().padLeft(2, '0')}:'
+            '${time.toLocal().minute.toString().padLeft(2, '0')}';
+
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 310),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        padding: const EdgeInsets.fromLTRB(14, 10, 12, 7),
+        decoration: BoxDecoration(
+          color: mine ? const Color(0xFF5146A8) : const Color(0xFF202640),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(17),
+            topRight: const Radius.circular(17),
+            bottomLeft: Radius.circular(mine ? 17 : 5),
+            bottomRight: Radius.circular(mine ? 5 : 17),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(body, style: const TextStyle(fontSize: 15)),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              timeLabel,
+              style: const TextStyle(color: Colors.white60, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final stream = Supabase.instance.client.from('messages').stream(primaryKey: ['id']).eq('chat_id', widget.chatId).order('created_at');
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Column(children: [
-        Expanded(child: StreamBuilder<List<Map<String, dynamic>>>(
-          stream: stream, builder: (context, snapshot) {
-            if (snapshot.hasError) return Center(child: Text('Ошибка загрузки: ${snapshot.error}'));
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            final messages = snapshot.data!;
-            if (messages.isEmpty) return const Center(child: Text('Начните общение'));
-            return ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: messages.length, itemBuilder: (context, i) {
-              final message = messages[i]; final mine = message['sender_id'] == _myId;
-              return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Container(
-                constraints: const BoxConstraints(maxWidth: 300), margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(color: mine ? const Color(0xFF5146A8) : const Color(0xFF202640), borderRadius: BorderRadius.circular(16)),
-                child: Text(message['body'] as String),
-              ));
-            });
-          },
-        )),
-        SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12), child: Row(children: [
-          Expanded(child: TextField(controller: _text, minLines: 1, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(hintText: 'Сообщение', contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)))),
-          const SizedBox(width: 8),
-          IconButton.filled(onPressed: _sending ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send)),
-        ]))),
-      ]),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _messages,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('Ошибка загрузки сообщений: ${snapshot.error}'),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final messages = snapshot.data!;
+                if (messages.isEmpty) {
+                  return const Center(child: Text('Начните общение'));
+                }
+                _scheduleScroll();
+                return ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) =>
+                      _messageBubble(messages[index]),
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _text,
+                      focusNode: _focus,
+                      minLines: 1,
+                      maxLines: 5,
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.newline,
+                      decoration: const InputDecoration(
+                        hintText: 'Сообщение',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Отправить',
+                    onPressed: _sending ? null : _send,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
