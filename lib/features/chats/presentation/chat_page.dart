@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'chat_media.dart';
+
 class ChatPage extends StatefulWidget {
   const ChatPage({required this.chatId, required this.title, super.key});
 
@@ -94,6 +96,8 @@ class _ChatPageState extends State<ChatPage> {
   Widget _messageBubble(Map<String, dynamic> message) {
     final mine = message['sender_id'] == _myId;
     final body = (message['body'] as String?) ?? '';
+    final type = (message['message_type'] as String?) ?? 'text';
+    final mediaPath = message['media_path'] as String?;
     final time = DateTime.tryParse(message['created_at'] as String? ?? '');
     final timeLabel = time == null
         ? ''
@@ -120,7 +124,9 @@ class _ChatPageState extends State<ChatPage> {
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(body, style: const TextStyle(fontSize: 15)),
+              child: type == 'text' || mediaPath == null
+                  ? Text(body, style: const TextStyle(fontSize: 15))
+                  : ChatMediaBubble(path: mediaPath, type: type),
             ),
             const SizedBox(height: 3),
             Text(
@@ -176,6 +182,7 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  ChatMediaComposer(chatId: widget.chatId),
                   Expanded(
                     child: TextField(
                       controller: _text,
