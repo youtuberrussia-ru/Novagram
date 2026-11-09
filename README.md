@@ -7,12 +7,14 @@ Novagram is an Android-first Flutter messenger foundation using Supabase for pho
 - Phone-number sign-in with SMS one-time codes through Supabase Auth.
 - Auth state gate and sign-out.
 - Automatic profile creation after a new account is created.
-- Chat list, profile screen, user search, and direct-chat creation.
-- Realtime text-message stream.
+- Editable profiles with display name, unique username, and short bio.
+- User search, direct chats, and group creation with participant selection.
+- Personalized chat titles and latest-message previews.
+- Realtime text-message stream with timestamps and improved message composer.
 - PostgreSQL schema and Row Level Security policies.
 - GitHub Actions workflow that generates Android platform files when needed, analyzes the Dart project, builds a debug APK, and uploads it as an artifact.
 
-This is an early foundation, not a finished commercial messenger. Group administration, media, voice/video calls, push notifications, end-to-end encryption, moderation, and AI tools are not implemented yet.
+This is an early foundation, not a finished commercial messenger. Advanced group administration, media sharing, voice/video calls, push notifications, end-to-end encryption, moderation, and AI tools are not implemented yet.
 
 ## 1. Configure Supabase
 
