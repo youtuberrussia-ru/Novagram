@@ -22,28 +22,28 @@ class _ConfigurationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
+        body: const SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(28),
+              padding: EdgeInsets.all(28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  const Icon(
+                children: [
+                  Icon(
                     Icons.forum_rounded,
                     size: 64,
                     color: Color(0xFF8B7CFF),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  SizedBox(height: 20),
+                  Text(
                     'Novagram',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
+                  SizedBox(height: 12),
+                  Text(
                     'Для запуска подключите Supabase: добавьте '
                     'SUPABASE_URL и SUPABASE_PUBLISHABLE_KEY '
                     'в GitHub Actions Variables и запустите сборку.',
