@@ -296,3 +296,66 @@ create trigger messages_touch_chat
 after insert on public.messages
 for each row execute function public.touch_chat_after_message();
 
+
+
+-- Create a private group and add the creator plus selected existing users.
+create or replace function public.create_group_chat(
+  p_title text,
+  p_user_ids uuid[]
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_me uuid := auth.uid();
+  v_title text := trim(coalesce(p_title, ''));
+  v_chat_id uuid;
+  v_user_count integer;
+begin
+  if v_me is null then
+    raise exception 'Authentication required';
+  end if;
+  if char_length(v_title) < 2 or char_length(v_title) > 50 then
+    raise exception 'Group name must be between 2 and 50 characters';
+  end if;
+
+  select count(distinct user_id) into v_user_count
+  from unnest(coalesce(p_user_ids, array[]::uuid[])) as user_id
+  where user_id <> v_me;
+
+  if v_user_count < 1 or v_user_count > 49 then
+    raise exception 'Choose between 1 and 49 other members';
+  end if;
+
+  if exists (
+    select 1
+    from unnest(coalesce(p_user_ids, array[]::uuid[])) as selected(user_id)
+    left join public.profiles p on p.id = selected.user_id
+    where selected.user_id <> v_me and p.id is null
+  ) then
+    raise exception 'One or more users were not found';
+  end if;
+
+  insert into public.chats (title, is_group, created_by)
+  values (v_title, true, v_me)
+  returning id into v_chat_id;
+
+  insert into public.chat_members (chat_id, user_id)
+  select v_chat_id, members.user_id
+  from (
+    select v_me as user_id
+    union
+    select distinct selected.user_id
+    from unnest(coalesce(p_user_ids, array[]::uuid[])) as selected(user_id)
+    where selected.user_id <> v_me
+  ) members;
+
+  return v_chat_id;
+end;
+$$;
+
+revoke all on function public.create_group_chat(text, uuid[]) from public;
+grant execute on function public.create_group_chat(text, uuid[]) to authenticated;
+
