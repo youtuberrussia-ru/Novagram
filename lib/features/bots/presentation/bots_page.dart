@@ -218,6 +218,31 @@ class _BotDetailsPageState extends State<BotDetailsPage> {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  Future<void> _runCommand(Map<String, dynamic> command) async {
+    final response = (command['response_text'] as String? ?? '').trim();
+    if (response.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('У команды пока нет ответа')),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(command['command'] as String? ?? 'Ответ бота'),
+        content: SingleChildScrollView(
+          child: SelectableText(response),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _addCommand() async {
     final command = TextEditingController(text: '/start');
     final description = TextEditingController();
@@ -359,12 +384,18 @@ class _BotDetailsPageState extends State<BotDetailsPage> {
                         leading: const Icon(Icons.terminal),
                         title: Text(item['command'] as String),
                         subtitle: Text(
-                          (item['description'] as String).isEmpty
-                              ? item['response_text'] as String
+                          (item['description'] as String? ?? '').isEmpty
+                              ? item['response_text'] as String? ?? ''
                               : item['description'] as String,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        trailing: IconButton(
+                          tooltip: 'Проверить ответ',
+                          onPressed: () => _runCommand(item),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                        ),
+                        onTap: () => _runCommand(item),
                       );
                     },
                   );
