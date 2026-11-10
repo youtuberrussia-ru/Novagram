@@ -59,9 +59,9 @@ class _SettingsPageState extends State<SettingsPage> {
             _allowGroupInvites =
                 privacy['allow_group_invites'] as bool? ?? true;
             _profileVisibility =
-                privacy['profile_visibility'] as String? ?? 'everyone';
+                (privacy['profile_visibility'] == 'nobody') ? 'nobody' : 'everyone';
             _messagePermissions =
-                privacy['message_permissions'] as String? ?? 'everyone';
+                (privacy['message_permissions'] == 'nobody') ? 'nobody' : 'everyone';
           });
         }
         final blocks = await _client
@@ -190,7 +190,6 @@ class _SettingsPageState extends State<SettingsPage> {
           value: value,
           items: const [
             DropdownMenuItem(value: 'everyone', child: Text('Все')),
-            DropdownMenuItem(value: 'contacts', child: Text('Контакты')),
             DropdownMenuItem(value: 'nobody', child: Text('Никто')),
           ],
           onChanged: onChanged,
