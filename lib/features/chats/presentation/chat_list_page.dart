@@ -443,13 +443,13 @@ class _ChatListPageState extends State<ChatListPage> {
             if (chats.isEmpty) {
               return ListView(
                 children: [
-                  SizedBox(height: 150),
-                  Icon(
+                  const SizedBox(height: 150),
+                  const Icon(
                     Icons.forum_outlined,
                     size: 56,
                     color: Colors.white38,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Center(child: Text(allChats.isEmpty ? 'Пока нет чатов' : 'Ничего не найдено')),
                   Center(
                     child: Text(
