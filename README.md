@@ -33,6 +33,22 @@ Email authentication does not require an SMS provider. Never put a database pass
 
 The GitHub Actions workflow **Build Novagram Android APK** runs on pushes to app code and can also be started from **Actions → Build Novagram Android APK → Run workflow**. A successful run uploads the `novagram-debug-apk` artifact.
 
+## Owner setup and administration
+
+The admin console is protected by database-side authorization. Applying the migration does **not** grant admin rights to every signed-in user. After your own account has been registered, open Supabase SQL Editor and run the following after replacing the email with the email used for your Novagram account:
+
+```sql
+insert into public.novagram_admins (user_id)
+select id from auth.users where lower(email) = lower('YOUR_SIGNUP_EMAIL')
+on conflict (user_id) do nothing;
+
+update public.profiles
+set username = 'novagram'
+where id = (select id from auth.users where lower(email) = lower('YOUR_SIGNUP_EMAIL'));
+```
+
+This reserves **@Novagram** for the official owner account. Do not put a service-role key or database password in the app. The admin console includes service counters and a protected report queue; only accounts in `novagram_admins` can read or change moderation data.
+
 ## Not implemented yet
 
 Live audio/video calls, background incoming-call notifications, push notifications, end-to-end encryption, channels, moderation, AI tools, and app-store release signing are not implemented. Video circles are short recorded clips, not live calls. These features require additional services and security work before a public launch.
