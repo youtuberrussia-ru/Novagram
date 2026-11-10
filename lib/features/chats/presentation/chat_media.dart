@@ -280,6 +280,14 @@ class _ChatMediaBubbleState extends State<ChatMediaBubble> {
       .createSignedUrl(widget.path, 3600);
 
   @override
+  void didUpdateWidget(covariant ChatMediaBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path || oldWidget.type != widget.type) {
+      _url = _signedUrl();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
       future: _url,
@@ -295,7 +303,10 @@ class _ChatMediaBubbleState extends State<ChatMediaBubble> {
           );
         }
         if (widget.type == 'voice') {
-          return _VoicePlayer(url: snapshot.data!);
+          return KeyedSubtree(
+            key: ValueKey('voice:${widget.path}'),
+            child: _VoicePlayer(url: snapshot.data!),
+          );
         }
         if (widget.type == 'image') {
           return ClipRRect(
@@ -316,7 +327,10 @@ class _ChatMediaBubbleState extends State<ChatMediaBubble> {
             ),
           );
         }
-        return _CirclePlayer(url: snapshot.data!);
+        return KeyedSubtree(
+          key: ValueKey('video:${widget.path}'),
+          child: _CirclePlayer(url: snapshot.data!),
+        );
       },
     );
   }
