@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../profile/presentation/profile_page.dart';
+import '../../settings/presentation/settings_page.dart';
 import '../data/chat_repository.dart';
 import '../domain/chat.dart';
 import 'chat_page.dart';
@@ -338,6 +339,14 @@ class _ChatListPageState extends State<ChatListPage> {
               MaterialPageRoute(builder: (_) => const ProfilePage()),
             ),
             icon: const Icon(Icons.account_circle_outlined),
+          ),
+          IconButton(
+            tooltip: 'Настройки',
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
