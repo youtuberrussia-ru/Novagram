@@ -317,8 +317,72 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
             FilledButton(
               onPressed: () {
                 final normalized = username.text.trim().replaceFirst(RegExp(r'^@'), '').toLowerCase();
-                if (title.text.trim().length >= 2 &&
-                    (normalized.isEmpty || RegExp(r'^[a-z0-9_]{4,32}
+                final validChars = normalized.codeUnits.every((c) =>
+                    (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95);
+                final validUsername = normalized.isEmpty ||
+                    (normalized.length >= 4 && normalized.length <= 32 && validChars);
+                if (title.text.trim().length >= 2 && validUsername) {
+                  Navigator.pop(dialogContext, {
+                    'title': title.text.trim(),
+                    'username': normalized,
+                    'description': description.text.trim(),
+                  });
+                }
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      );
+      if (data == null || !mounted) return;
+      setState(() => _busy = true);
+      await _client.from('channels').update({
+        'title': data['title'],
+        'username': data['username']!.isEmpty ? null : data['username'],
+        'description': data['description'],
+      }).eq('id', _channelId);
+      if (!mounted) return;
+      setState(() {
+        widget.channel['title'] = data['title'];
+        widget.channel['username'] = data['username']!.isEmpty ? null : data['username'];
+        widget.channel['description'] = data['description'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Канал обновлён')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось изменить канал: ' + error.toString())));
+    } finally {
+      title.dispose();
+      username.dispose();
+      description.dispose();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteChannel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Удалить канал?'),
+        content: const Text('Канал, публикации и подписки будут удалены без возможности восстановления.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Удалить')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _client.from('channels').delete().eq('id', _channelId);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось удалить канал: ' + error.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _publish() async {
     final body = _postController.text.trim();
     if (body.isEmpty || _busy) return;
     setState(() => _busy = true);
@@ -367,205 +431,6 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
                 PopupMenuItem(value: 'delete', child: Text('Удалить канал')),
               ],
             ),
-          if (!_isOwner)
-            TextButton(
-              onPressed: _busy ? null : _joinOrLeave,
-              child: Text(_member ? 'Выйти' : 'Подписаться'),
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if ((widget.channel['description'] as String? ?? '').isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(widget.channel['description'] as String),
-            ),
-          if (username != null && username.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text('@$username',
-                  style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-            ),
-          const Divider(height: 1),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _posts,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return ListView(children: const [
-                      SizedBox(height: 100),
-                      Center(child: Text('Не удалось загрузить публикации')),
-                    ]);
-                  }
-                  final posts = snapshot.data ?? [];
-                  if (posts.isEmpty) {
-                    return ListView(children: const [
-                      SizedBox(height: 100),
-                      Center(child: Text('Публикаций пока нет')),
-                    ]);
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: posts.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final post = posts[index];
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(post['body'] as String),
-                              const SizedBox(height: 8),
-                              Text(
-                                (post['created_at'] as String?) ?? '',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-          if (_isOwner)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _postController,
-                        maxLength: 10000,
-                        minLines: 1,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          hintText: 'Новая публикация',
-                          counterText: '',
-                        ),
-                      ),
-                    ),
-                    IconButton.filled(
-                      onPressed: _busy ? null : _publish,
-                      icon: const Icon(Icons.send),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-).hasMatch(normalized))) {
-                  Navigator.pop(dialogContext, {
-                    'title': title.text.trim(),
-                    'username': normalized,
-                    'description': description.text.trim(),
-                  });
-                }
-              },
-              child: const Text('Сохранить'),
-            ),
-          ],
-        ),
-      );
-      if (data == null || !mounted) return;
-      setState(() => _busy = true);
-      await _client.from('channels').update({
-        'title': data['title'],
-        'username': data['username']!.isEmpty ? null : data['username'],
-        'description': data['description'],
-      }).eq('id', _channelId);
-      if (!mounted) return;
-      setState(() {
-        widget.channel['title'] = data['title'];
-        widget.channel['username'] = data['username']!.isEmpty ? null : data['username'];
-        widget.channel['description'] = data['description'];
-      });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Канал обновлён')));
-    } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось изменить канал: $error')));
-    } finally {
-      title.dispose();
-      username.dispose();
-      description.dispose();
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _deleteChannel() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Удалить канал?'),
-        content: const Text('Канал, публикации и подписки будут удалены без возможности восстановления.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Отмена')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Удалить')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      await _client.from('channels').delete().eq('id', _channelId);
-      if (mounted) Navigator.of(context).pop();
-    } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось удалить канал: $error')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _publish() async {
-    final body = _postController.text.trim();
-    if (body.isEmpty || _busy) return;
-    setState(() => _busy = true);
-    try {
-      await _client.from('channel_posts').insert({
-        'channel_id': _channelId,
-        'author_id': _client.auth.currentUser!.id,
-        'body': body,
-      });
-      _postController.clear();
-      await _refresh();
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось опубликовать: $error')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _postController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final username = widget.channel['username'] as String?;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.channel['title'] as String? ?? 'Канал'),
-        actions: [
           if (!_isOwner)
             TextButton(
               onPressed: _busy ? null : _joinOrLeave,
