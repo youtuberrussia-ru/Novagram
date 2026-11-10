@@ -86,7 +86,7 @@ class _AdminPageState extends State<AdminPage> {
             const SizedBox(height: 24),
             Row(children: [
               const Expanded(child: Text('Жалобы и безопасность', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
-              Text(${_count('pending_reports')} новых, style: const TextStyle(color: Color(0xFFFFA1AE), fontWeight: FontWeight.w700)),
+              Text('${_count('pending_reports')} новых', style: const TextStyle(color: Color(0xFFFFA1AE), fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 10),
             if (reports.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Жалоб пока нет', style: TextStyle(color: Colors.white54)))),
