@@ -122,7 +122,7 @@ class _ChatPageState extends State<ChatPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   decoration: const InputDecoration(labelText: 'Причина'),
                   items: const [
                     DropdownMenuItem(value: 'harassment', child: Text('Преследование')),
