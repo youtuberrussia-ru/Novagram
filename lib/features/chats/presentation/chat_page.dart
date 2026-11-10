@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -116,7 +117,9 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _showMessageActions(Map<String, dynamic> message) async {
     final messageId = message['id'] as String?;
     if (messageId == null) return;
-    final confirmed = !_confirmDelete || await showDialog<bool>(
+    final confirmed = !_confirmDelete
+        ? true
+        : (await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Удалить сообщение?'),
@@ -132,8 +135,8 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
-    );
-    if (confirmed != true || !mounted) return;
+    )) ?? false;
+    if (!confirmed || !mounted) return;
     try {
       await _client
           .from('messages')
