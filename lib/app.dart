@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/widgets/novagram_logo.dart';
 import 'features/auth/presentation/auth_gate.dart';
 
 class NovagramApp extends StatelessWidget {
@@ -29,11 +30,7 @@ class _ConfigurationPage extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.forum_rounded,
-                    size: 64,
-                    color: Color(0xFF8B7CFF),
-                  ),
+                  NovagramLogo(size: 76),
                   SizedBox(height: 20),
                   Text(
                     'Novagram',
