@@ -100,7 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
       final ext = image.path.split('.').last.toLowerCase();
       final safeExt = ext == 'png' || ext == 'webp' ? ext : 'jpg';
-      final path = '\${user.id}/avatar.$safeExt';
+      final path = '${user.id}/avatar.$safeExt';
       await _client.storage.from('profile-avatars').upload(
         path,
         file,
