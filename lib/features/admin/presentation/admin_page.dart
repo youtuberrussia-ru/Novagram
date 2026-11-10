@@ -86,7 +86,7 @@ class _AdminPageState extends State<AdminPage> {
             const SizedBox(height: 24),
             Row(children: [
               const Expanded(child: Text('Жалобы и безопасность', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
-              Text(_count('pending_reports').toString() + ' новых', style: const TextStyle(color: Color(0xFFFFA1AE), fontWeight: FontWeight.w700)),
+              Text(${_count('pending_reports')} новых, style: const TextStyle(color: Color(0xFFFFA1AE), fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 10),
             if (reports.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Жалоб пока нет', style: TextStyle(color: Colors.white54)))),
@@ -97,7 +97,7 @@ class _AdminPageState extends State<AdminPage> {
               return Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: const Color(0xFF171923), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x0EFFFFFF))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [Expanded(child: Text(_category(r['category'] as String? ?? 'other'), style: const TextStyle(fontWeight: FontWeight.w800))), Text(_status(status), style: const TextStyle(color: Colors.white54, fontSize: 12))]),
                 const SizedBox(height: 7),
-                Text('От: ' + (r['reporter_name']?.toString() ?? 'Пользователь') + ' • На: ' + (r['reported_name']?.toString() ?? 'Не указан'), style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                Text('От: ${r['reporter_name'] ?? 'Пользователь'} • На: ${r['reported_name'] ?? 'Не указан'}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
                 if ((r['details'] as String? ?? '').isNotEmpty) ...[const SizedBox(height: 9), Text(r['details'] as String)],
                 const SizedBox(height: 12),
                 Wrap(spacing: 7, runSpacing: 7, children: [
