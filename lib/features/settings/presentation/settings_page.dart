@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -16,6 +17,16 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _confirmDelete = true;
   bool _hapticFeedback = true;
 
+  bool _showOnline = true;
+  bool _readReceipts = true;
+  bool _allowGroupInvites = true;
+  String _profileVisibility = 'everyone';
+  String _messagePermissions = 'everyone';
+  bool _privacySaving = false;
+  List<Map<String, dynamic>> _blockedUsers = [];
+
+  SupabaseClient get _client => Supabase.instance.client;
+
   @override
   void initState() {
     super.initState();
@@ -31,14 +42,102 @@ class _SettingsPageState extends State<SettingsPage> {
       _showTime = prefs.getBool('setting_show_time') ?? true;
       _confirmDelete = prefs.getBool('setting_confirm_delete') ?? true;
       _hapticFeedback = prefs.getBool('setting_haptic') ?? true;
-      _loading = false;
     });
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        final privacy = await _client
+            .from('user_privacy_settings')
+            .select()
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (privacy != null && mounted) {
+          setState(() {
+            _showOnline = privacy['show_online'] as bool? ?? true;
+            _readReceipts = privacy['read_receipts'] as bool? ?? true;
+            _allowGroupInvites =
+                privacy['allow_group_invites'] as bool? ?? true;
+            _profileVisibility =
+                privacy['profile_visibility'] as String? ?? 'everyone';
+            _messagePermissions =
+                privacy['message_permissions'] as String? ?? 'everyone';
+          });
+        }
+        final blocks = await _client
+            .from('user_blocks')
+            .select('blocked_id')
+            .eq('blocker_id', userId);
+        final ids = (blocks as List)
+            .map((row) => row['blocked_id'] as String)
+            .toList();
+        if (ids.isNotEmpty) {
+          final profiles = await _client
+              .from('profiles')
+              .select('id, display_name, username')
+              .inFilter('id', ids);
+          if (mounted) {
+            setState(() => _blockedUsers =
+                List<Map<String, dynamic>>.from(profiles));
+          }
+        }
+      }
+    } catch (_) {
+      // A missing migration should not prevent access to ordinary settings.
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _set(String key, bool value, void Function() update) async {
     setState(update);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
+  }
+
+  Future<void> _savePrivacy() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || _privacySaving) return;
+    setState(() => _privacySaving = true);
+    try {
+      await _client.from('user_privacy_settings').upsert({
+        'user_id': userId,
+        'profile_visibility': _profileVisibility,
+        'message_permissions': _messagePermissions,
+        'show_online': _showOnline,
+        'read_receipts': _readReceipts,
+        'allow_group_invites': _allowGroupInvites,
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось сохранить приватность: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _privacySaving = false);
+    }
+  }
+
+  Future<void> _unblock(Map<String, dynamic> user) async {
+    final userId = _client.auth.currentUser?.id;
+    final blockedId = user['id'] as String?;
+    if (userId == null || blockedId == null) return;
+    try {
+      await _client
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', userId)
+          .eq('blocked_id', blockedId);
+      if (mounted) {
+        setState(() => _blockedUsers.removeWhere((item) => item['id'] == blockedId));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось разблокировать: $error')),
+        );
+      }
+    }
   }
 
   Widget _section(String title, IconData icon, List<Widget> children) =>
@@ -78,6 +177,68 @@ class _SettingsPageState extends State<SettingsPage> {
         subtitle: Text(subtitle),
       );
 
+  Widget _visibilityTile({
+    required String title,
+    required String subtitle,
+    required String value,
+    required ValueChanged<String?> onChanged,
+  }) =>
+      ListTile(
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: DropdownButton<String>(
+          value: value,
+          items: const [
+            DropdownMenuItem(value: 'everyone', child: Text('Все')),
+            DropdownMenuItem(value: 'contacts', child: Text('Контакты')),
+            DropdownMenuItem(value: 'nobody', child: Text('Никто')),
+          ],
+          onChanged: onChanged,
+        ),
+      );
+
+  Future<void> _showBlockedUsers() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Заблокированные пользователи'),
+        content: SizedBox(
+          width: 380,
+          child: _blockedUsers.isEmpty
+              ? const Text('Список пока пуст.')
+              : ListView(
+                  shrinkWrap: true,
+                  children: _blockedUsers.map((user) {
+                    final name =
+                        user['display_name'] as String? ?? 'Пользователь';
+                    final username = user['username'] as String? ?? '';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(name),
+                      subtitle: username.isEmpty ? null : Text('@$username'),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          await _unblock(user);
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                        },
+                        child: const Text('Снять блок'),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,41 +253,29 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Отправлять по Enter',
                     subtitle: 'Enter отправляет сообщение, перенос строки отключён',
                     value: _enterToSend,
-                    onChanged: (v) => _set(
-                      'setting_enter_to_send',
-                      v,
-                      () => _enterToSend = v,
-                    ),
+                    onChanged: (v) => _set('setting_enter_to_send', v,
+                        () => _enterToSend = v),
                   ),
                   _switch(
                     title: 'Компактные сообщения',
                     subtitle: 'Уменьшить отступы между сообщениями',
                     value: _compactMessages,
-                    onChanged: (v) => _set(
-                      'setting_compact_messages',
-                      v,
-                      () => _compactMessages = v,
-                    ),
+                    onChanged: (v) => _set('setting_compact_messages', v,
+                        () => _compactMessages = v),
                   ),
                   _switch(
                     title: 'Показывать время',
                     subtitle: 'Отображать время отправки под сообщениями',
                     value: _showTime,
-                    onChanged: (v) => _set(
-                      'setting_show_time',
-                      v,
-                      () => _showTime = v,
-                    ),
+                    onChanged: (v) => _set('setting_show_time', v,
+                        () => _showTime = v),
                   ),
                   _switch(
                     title: 'Подтверждать удаление',
                     subtitle: 'Спрашивать перед удалением сообщения',
                     value: _confirmDelete,
-                    onChanged: (v) => _set(
-                      'setting_confirm_delete',
-                      v,
-                      () => _confirmDelete = v,
-                    ),
+                    onChanged: (v) => _set('setting_confirm_delete', v,
+                        () => _confirmDelete = v),
                   ),
                 ]),
                 _section('Удобство', Icons.tune_rounded, [
@@ -134,39 +283,98 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Тактильный отклик',
                     subtitle: 'Лёгкая вибрация при отправке сообщения',
                     value: _hapticFeedback,
-                    onChanged: (v) => _set(
-                      'setting_haptic',
-                      v,
-                      () => _hapticFeedback = v,
-                    ),
+                    onChanged: (v) => _set('setting_haptic', v,
+                        () => _hapticFeedback = v),
                   ),
                 ]),
-                _section('Аккаунт и безопасность', Icons.shield_outlined, [
-                  const ListTile(
-                    leading: Icon(Icons.email_outlined),
-                    title: Text('Вход по электронной почте'),
-                    subtitle: Text('Ваш аккаунт защищён авторизацией Supabase'),
+                _section('Приватность и защита', Icons.shield_outlined, [
+                  _visibilityTile(
+                    title: 'Кто видит мой профиль',
+                    subtitle: 'Управление доступностью профиля',
+                    value: _profileVisibility,
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _profileVisibility = v);
+                      _savePrivacy();
+                    },
                   ),
-                  const ListTile(
-                    leading: Icon(Icons.lock_outline),
-                    title: Text('Конфиденциальность'),
-                    subtitle: Text('Расширенные настройки приватности появятся в следующих обновлениях'),
+                  _visibilityTile(
+                    title: 'Кто может писать',
+                    subtitle: 'Ограничение входящих сообщений',
+                    value: _messagePermissions,
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _messagePermissions = v);
+                      _savePrivacy();
+                    },
+                  ),
+                  _switch(
+                    title: 'Показывать онлайн',
+                    subtitle: 'Разрешить другим видеть статус активности',
+                    value: _showOnline,
+                    onChanged: (v) {
+                      setState(() => _showOnline = v);
+                      _savePrivacy();
+                    },
+                  ),
+                  _switch(
+                    title: 'Отчёты о прочтении',
+                    subtitle: 'Разрешить показывать отметки прочтения',
+                    value: _readReceipts,
+                    onChanged: (v) {
+                      setState(() => _readReceipts = v);
+                      _savePrivacy();
+                    },
+                  ),
+                  _switch(
+                    title: 'Приглашения в группы',
+                    subtitle: 'Разрешить добавлять меня в групповые чаты',
+                    value: _allowGroupInvites,
+                    onChanged: (v) {
+                      setState(() => _allowGroupInvites = v);
+                      _savePrivacy();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.block),
+                    title: const Text('Заблокированные пользователи'),
+                    subtitle: Text('В списке: ${_blockedUsers.length}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showBlockedUsers,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: Text(
+                      'Настройки приватности сохраняются в аккаунте. Защита не может полностью исключить скриншоты или копирование уже увиденной информации.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ),
+                  if (_privacySaving)
+                    const LinearProgressIndicator(minHeight: 2),
+                ]),
+                _section('Novagram Shield', Icons.security, const [
+                  ListTile(
+                    leading: Icon(Icons.report_gmailerrorred),
+                    title: Text('Жалобы на угрозы и доксинг'),
+                    subtitle: Text('Система жалоб готовится к подключению модерации'),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.phonelink_lock),
+                    title: Text('Управление устройствами'),
+                    subtitle: Text('Управление сессиями будет доступно после подключения серверной функции'),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.verified_user_outlined),
+                    title: Text('Двухфакторная защита'),
+                    subtitle: Text('Требует настройки второго фактора в Supabase Auth'),
                   ),
                 ]),
                 _section('Novagram', Icons.info_outline, const [
                   ListTile(
                     title: Text('Версия приложения'),
-                    subtitle: Text('0.1.0 • Ранняя версия'),
+                    subtitle: Text('0.2.0 • Обновление безопасности'),
                   ),
                 ]),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'Некоторые функции, например push-уведомления и управление активными сеансами, ещё разрабатываются и не отображаются как готовые.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ),
               ],
             ),
     );
