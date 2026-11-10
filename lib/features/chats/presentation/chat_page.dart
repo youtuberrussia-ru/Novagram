@@ -193,6 +193,40 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  bool _mayContainPrivateData(String text) {
+    final email = RegExp(r'[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}');
+    final phone = RegExp(r'\\+?\\d[\\d\\s().-]{7,}\\d');
+    final ipAddress = RegExp(r'\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b');
+    return email.hasMatch(text) ||
+        phone.hasMatch(text) ||
+        ipAddress.hasMatch(text);
+  }
+
+  Future<bool> _confirmPrivateDataWarning(String text) async {
+    if (!_mayContainPrivateData(text)) return true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Проверьте личные данные'),
+        content: const Text(
+          'Похоже, сообщение содержит электронную почту, номер телефона или IP-адрес. '
+          'Не отправляйте чужие личные данные без разрешения. Вы уверены, что хотите продолжить?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Проверить'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Всё равно отправить'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _send() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
@@ -202,6 +236,9 @@ class _ChatPageState extends State<ChatPage> {
       );
       return;
     }
+
+    final safeToSend = await _confirmPrivateDataWarning(body);
+    if (!safeToSend || !mounted) return;
 
     if (_hapticFeedback) await HapticFeedback.selectionClick();
     setState(() => _sending = true);
