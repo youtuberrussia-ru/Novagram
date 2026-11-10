@@ -77,6 +77,122 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  Future<String?> _getDirectPartner() async {
+    final result = await _client.rpc(
+      'get_direct_chat_partner',
+      params: {'p_chat_id': widget.chatId},
+    );
+    return result as String?;
+  }
+
+  Future<void> _blockPartner() async {
+    try {
+      final partnerId = await _getDirectPartner();
+      if (partnerId == null) {
+        throw Exception('Блокировка доступна в личном чате.');
+      }
+      await _client.from('user_blocks').upsert({
+        'blocker_id': _myId,
+        'blocked_id': partnerId,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пользователь заблокирован')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось заблокировать: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _reportConversation() async {
+    final details = TextEditingController();
+    var category = 'harassment';
+    final report = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Пожаловаться'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: 'Причина'),
+                  items: const [
+                    DropdownMenuItem(value: 'harassment', child: Text('Преследование')),
+                    DropdownMenuItem(value: 'doxxing', child: Text('Публикация личных данных')),
+                    DropdownMenuItem(value: 'threats', child: Text('Угрозы')),
+                    DropdownMenuItem(value: 'swatting', child: Text('Угроза ложного вызова служб')),
+                    DropdownMenuItem(value: 'spam', child: Text('Спам')),
+                    DropdownMenuItem(value: 'impersonation', child: Text('Выдаёт себя за другого')),
+                    DropdownMenuItem(value: 'other', child: Text('Другое')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => category = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: details,
+                  maxLength: 2000,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Подробности (необязательно)',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, {
+                'category': category,
+                'details': details.text.trim(),
+              }),
+              child: const Text('Отправить'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final detailsText = details.text.trim();
+    details.dispose();
+    if (report == null || !mounted) return;
+
+    try {
+      final partnerId = await _getDirectPartner();
+      await _client.from('user_reports').insert({
+        'reporter_id': _myId,
+        'reported_user_id': partnerId,
+        'chat_id': widget.chatId,
+        'category': report['category'],
+        'details': detailsText,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Жалоба отправлена. Спасибо за сообщение.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось отправить жалобу: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _send() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
@@ -219,7 +335,36 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Безопасность чата',
+            onSelected: (value) {
+              if (value == 'report') _reportConversation();
+              if (value == 'block') _blockPartner();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'report',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.flag_outlined),
+                  title: Text('Пожаловаться'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'block',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.block),
+                  title: Text('Заблокировать'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
