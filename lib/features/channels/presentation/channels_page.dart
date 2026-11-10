@@ -547,12 +547,6 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
         'description': data['description'],
       }).eq('id', _channelId);
       if (!mounted) return;
-      setState(() {
-        widget.channel['title'] = data['title'];
-        widget.channel['username'] =
-            data['username']!.isEmpty ? null : data['username'];
-        widget.channel['description'] = data['description'];
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Настройки канала сохранены')),
       );
@@ -606,6 +600,87 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
     }
   }
 
+  Future<void> _editChannel() async {
+    final title = TextEditingController(text: widget.channel['title'] as String? ?? '');
+    final username = TextEditingController(text: widget.channel['username'] as String? ?? '');
+    final description = TextEditingController(text: widget.channel['description'] as String? ?? '');
+    try {
+      final data = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Настройки канала'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: title, maxLength: 60, decoration: const InputDecoration(labelText: 'Название')),
+              TextField(controller: username, maxLength: 32, decoration: const InputDecoration(labelText: 'Username')),
+              TextField(controller: description, maxLength: 500, maxLines: 3, decoration: const InputDecoration(labelText: 'Описание')),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Отмена')),
+            FilledButton(
+              onPressed: () {
+                if (title.text.trim().length >= 2) {
+                  Navigator.pop(dialogContext, {
+                    'title': title.text.trim(),
+                    'username': username.text.trim().replaceFirst(RegExp(r'^@'), '').toLowerCase(),
+                    'description': description.text.trim(),
+                  });
+                }
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      );
+      if (data == null || !mounted) return;
+      setState(() => _busy = true);
+      await _client.from('channels').update({
+        'title': data['title'],
+        'username': data['username']!.isEmpty ? null : data['username'],
+        'description': data['description'],
+      }).eq('id', _channelId);
+      if (!mounted) return;
+      setState(() {
+        widget.channel['title'] = data['title'];
+        widget.channel['username'] = data['username']!.isEmpty ? null : data['username'];
+        widget.channel['description'] = data['description'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Канал обновлён')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка изменения канала: $error')));
+    } finally {
+      title.dispose();
+      username.dispose();
+      description.dispose();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteChannel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Удалить канал?'),
+        content: const Text('Все публикации и подписки канала будут удалены.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Удалить')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _client.from('channels').delete().eq('id', _channelId);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка удаления канала: $error')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _publish() async {
     final body = _postController.text.trim();
     if (body.isEmpty || _busy) return;
@@ -642,6 +717,19 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
       appBar: AppBar(
         title: Text(widget.channel['title'] as String? ?? 'Канал'),
         actions: [
+          if (_isOwner)
+            PopupMenuButton<String>(
+              enabled: !_busy,
+              tooltip: 'Управление каналом',
+              onSelected: (value) {
+                if (value == 'edit') _editChannel();
+                if (value == 'delete') _deleteChannel();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Изменить канал')),
+                PopupMenuItem(value: 'delete', child: Text('Удалить канал')),
+              ],
+            ),
           if (!_isOwner)
             TextButton(
               onPressed: _busy ? null : _joinOrLeave,
