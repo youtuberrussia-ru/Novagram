@@ -194,9 +194,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   bool _mayContainPrivateData(String text) {
-    final email = RegExp(r'[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}');
-    final phone = RegExp(r'\\+?\\d[\\d\\s().-]{7,}\\d');
-    final ipAddress = RegExp(r'\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b');
+    final email = RegExp(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}');
+    final phone = RegExp(r'\+?\d[\d\s().-]{7,}\d');
+    final ipAddress = RegExp(r'\b(?:\d{1,3}\.){3}\d{1,3}\b');
     return email.hasMatch(text) ||
         phone.hasMatch(text) ||
         ipAddress.hasMatch(text);
