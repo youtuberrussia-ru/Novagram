@@ -21,6 +21,7 @@ class ChatListPage extends StatefulWidget {
 class _ChatListPageState extends State<ChatListPage> {
   late final ChatRepository _repo;
   late Future<List<Chat>> _chats;
+  String _chatQuery = '';
 
   @override
   void initState() {
@@ -398,9 +399,23 @@ class _ChatListPageState extends State<ChatListPage> {
         onPressed: _searchUsers,
         child: const Icon(Icons.edit),
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<List<Chat>>(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            child: TextField(
+              onChanged: (value) => setState(() => _chatQuery = value.trim().toLowerCase()),
+              decoration: const InputDecoration(
+                hintText: 'Поиск по чатам',
+                prefixIcon: Icon(Icons.search_rounded),
+                isDense: true,
+              ),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: FutureBuilder<List<Chat>>(
           future: _chats,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -423,10 +438,11 @@ class _ChatListPageState extends State<ChatListPage> {
                 ],
               );
             }
-            final chats = snapshot.data ?? [];
+            final allChats = snapshot.data ?? [];
+            final chats = allChats.where((chat) => chat.title.toLowerCase().contains(_chatQuery) || (chat.lastMessage ?? '').toLowerCase().contains(_chatQuery)).toList();
             if (chats.isEmpty) {
               return ListView(
-                children: const [
+                children: [
                   SizedBox(height: 150),
                   Icon(
                     Icons.forum_outlined,
@@ -434,11 +450,11 @@ class _ChatListPageState extends State<ChatListPage> {
                     color: Colors.white38,
                   ),
                   SizedBox(height: 16),
-                  Center(child: Text('Пока нет чатов')),
+                  Center(child: Text(allChats.isEmpty ? 'Пока нет чатов' : 'Ничего не найдено')),
                   Center(
                     child: Text(
-                      'Нажмите ✎, чтобы найти собеседника',
-                      style: TextStyle(color: Colors.white54),
+                      allChats.isEmpty ? 'Нажмите ✎, чтобы найти собеседника' : 'Измените запрос поиска',
+                      style: const TextStyle(color: Colors.white54),
                     ),
                   ),
                 ],
@@ -493,7 +509,10 @@ class _ChatListPageState extends State<ChatListPage> {
               },
             );
           },
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
