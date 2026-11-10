@@ -349,7 +349,7 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Канал обновлён')));
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось изменить канал: ' + error.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось изменить канал: ${error.toString()}')));
     } finally {
       title.dispose();
       username.dispose();
@@ -376,7 +376,7 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
       await _client.from('channels').delete().eq('id', _channelId);
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось удалить канал: ' + error.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось удалить канал: ${error.toString()}')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
