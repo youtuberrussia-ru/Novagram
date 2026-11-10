@@ -161,6 +161,10 @@ class _SettingsPageState extends State<SettingsPage> {
         friendlyName: 'Novagram authenticator',
       );
       factorId = enrollment.id;
+      final secret = enrollment.totp?.secret;
+      if (secret == null || secret.isEmpty) {
+        throw Exception('Сервер не вернул секрет TOTP');
+      }
       if (!mounted) return;
       final accepted = await showDialog<bool>(
         context: context,
@@ -175,7 +179,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Text('Добавьте ключ в приложение-аутентификатор. Не отправляйте его другим людям.'),
                 const SizedBox(height: 12),
                 SelectableText(
-                  enrollment.totp.secret,
+                  secret,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -201,14 +205,14 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       );
       if (accepted != true || !mounted) {
-        if (factorId != null) await _client.auth.mfa.unenroll(factorId);
+        await _client.auth.mfa.unenroll(factorId);
         return;
       }
       final code = codeController.text.trim();
       if (!RegExp(r'^\d{6}$').hasMatch(code)) {
         throw Exception('Введите шестизначный код');
       }
-      final challenge = await _client.auth.mfa.challenge(factorId: factorId!);
+      final challenge = await _client.auth.mfa.challenge(factorId: factorId);
       await _client.auth.mfa.verify(
         factorId: factorId!,
         challengeId: challenge.id,
@@ -224,7 +228,7 @@ class _SettingsPageState extends State<SettingsPage> {
         try {
           final pending = await _client.auth.mfa.listFactors();
           final stillPending = pending.all.any((item) => item.id == factorId && item.status != FactorStatus.verified);
-          if (stillPending) await _client.auth.mfa.unenroll(factorId!);
+          if (stillPending) await _client.auth.mfa.unenroll(factorId);
         } catch (_) {}
       }
       if (mounted) {
@@ -467,7 +471,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (_privacySaving)
                     const LinearProgressIndicator(minHeight: 2),
                 ]),
-                _section('Novagram Shield', Icons.security, const [
+                _section('Novagram Shield', Icons.security, [
                   ListTile(
                     leading: Icon(Icons.report_gmailerrorred),
                     title: Text('Жалобы на угрозы и доксинг'),
