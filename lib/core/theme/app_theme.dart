@@ -11,10 +11,10 @@ abstract final class AppTheme {
       useMaterial3: true, brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(primary: accent, secondary: cyan, surface: surface, error: Color(0xFFFF667A), onSurface: Color(0xFFF4F4F8)),
       scaffoldBackgroundColor: background,
-      dividerColor: Color(0x1AFFFFFF),
+      dividerColor: const Color(0x1AFFFFFF),
       splashFactory: InkSparkle.splashFactory,
       appBarTheme: const AppBarTheme(backgroundColor: background, foregroundColor: Colors.white, centerTitle: false, elevation: 0, scrolledUnderElevation: 0, titleTextStyle: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -.5)),
-      cardTheme: CardThemeData(color: surface, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: Color(0x0EFFFFFF)))),
+      cardTheme: const CardThemeData(color: surface, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(22)), side: BorderSide(color: Color(0x0EFFFFFF)))),
       inputDecorationTheme: InputDecorationTheme(
         filled: true, fillColor: elevated, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         hintStyle: const TextStyle(color: Color(0xFF858898)),
