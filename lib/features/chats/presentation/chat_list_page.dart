@@ -31,96 +31,62 @@ class _ChatListPageState extends State<ChatListPage> {
   }
 
   Future<void> _searchUsers() async {
-    final controller = TextEditingController();
-    await showDialog<void>(
+    final users = await showDialog<List<Map<String, dynamic>>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Найти пользователя'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Имя или username'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final navigator = Navigator.of(dialogContext);
-              try {
-                final users = await _repo.searchUsers(controller.text);
-                if (!mounted) return;
-                navigator.pop();
-                if (users.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Пользователи не найдены')),
-                  );
-                  return;
-                }
-                await showModalBottomSheet<void>(
-                  context: context,
-                  builder: (sheetContext) => SafeArea(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: users.map((user) {
-                        final name =
-                            (user['display_name'] as String?) ?? 'Пользователь';
-                        return ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.person),
-                          ),
-                          title: Text(name),
-                          subtitle: Text((user['username'] as String?) ?? ''),
-                          onTap: () async {
-                            Navigator.pop(sheetContext);
-                            try {
-                              final id = await _repo.createDirectChat(
-                                user['id'] as String,
-                              );
-                              await _refresh();
-                              if (!mounted) return;
-                              await Navigator.push<void>(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ChatPage(
-                                    chatId: id,
-                                    title: name,
-                                  ),
-                                ),
-                              );
-                            } catch (error) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Не удалось создать чат: $error',
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                        );
-                      }).toList(),
+      builder: (_) => _UserSearchDialog(onSearch: _repo.searchUsers),
+    );
+    if (!mounted || users == null) return;
+    if (users.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пользователи не найдены')),
+      );
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: users.map((user) {
+            final name = (user['display_name'] as String?) ?? 'Пользователь';
+            final username = (user['username'] as String?) ?? '';
+            final avatar = user['avatar_url'] as String?;
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: avatar == null || avatar.isEmpty
+                    ? null
+                    : NetworkImage(avatar),
+                child: avatar == null || avatar.isEmpty
+                    ? const Icon(Icons.person)
+                    : null,
+              ),
+              title: Text(name),
+              subtitle: Text(username.isEmpty ? '' : '@$username'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                try {
+                  final id = await _repo.createDirectChat(user['id'] as String);
+                  await _refresh();
+                  if (!mounted) return;
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(chatId: id, title: name),
                     ),
-                  ),
-                );
-              } catch (error) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Ошибка поиска: $error')),
-                );
-              }
-            },
-            child: const Text('Найти'),
-          ),
-        ],
+                  );
+                } catch (error) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Не удалось создать чат: $error')),
+                  );
+                }
+              },
+            );
+          }).toList(),
+        ),
       ),
     );
-    controller.dispose();
   }
-
 
   Future<void> _createGroupChat() async {
     final titleController = TextEditingController();
@@ -457,4 +423,83 @@ class _ChatListPageState extends State<ChatListPage> {
       ),
     );
   }
+}
+
+
+class _UserSearchDialog extends StatefulWidget {
+  const _UserSearchDialog({required this.onSearch});
+
+  final Future<List<Map<String, dynamic>>> Function(String query) onSearch;
+
+  @override
+  State<_UserSearchDialog> createState() => _UserSearchDialogState();
+}
+
+class _UserSearchDialogState extends State<_UserSearchDialog> {
+  late final TextEditingController _controller;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final query = _controller.text.trim();
+    if (query.length < 2) {
+      setState(() => _error = 'Введите минимум 2 символа.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final users = await widget.onSearch(query);
+      if (mounted) Navigator.of(context).pop(users);
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Ошибка поиска: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Найти пользователя'),
+        content: TextField(
+          controller: _controller,
+          autofocus: true,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+          decoration: InputDecoration(
+            hintText: 'Имя или username',
+            errorText: _error,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: _loading ? null : _search,
+            child: _loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Найти'),
+          ),
+        ],
+      );
 }
