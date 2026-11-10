@@ -84,6 +84,7 @@ class _ChatListPageState extends State<ChatListPage> {
                       builder: (_) => ChatPage(chatId: id, title: name),
                     ),
                   );
+                  if (mounted) await _refresh();
                 } catch (error) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -287,6 +288,7 @@ class _ChatListPageState extends State<ChatListPage> {
                                   ChatPage(chatId: id, title: title),
                             ),
                           );
+                          if (mounted) await _refresh();
                         } catch (error) {
                           if (dialogContext.mounted) {
                             setDialogState(() {
@@ -466,15 +468,18 @@ class _ChatListPageState extends State<ChatListPage> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12.5, color: Colors.white60),
                   ),
-                  onTap: () => Navigator.push<void>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        chatId: chat.id,
-                        title: chat.title,
+                  onTap: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatPage(
+                          chatId: chat.id,
+                          title: chat.title,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                    if (mounted) await _refresh();
+                  },
                 );
               },
             );
