@@ -215,7 +215,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       final challenge = await _client.auth.mfa.challenge(factorId: factorId);
       await _client.auth.mfa.verify(
-        factorId: factorId!,
+        factorId: factorId,
         challengeId: challenge.id,
         code: code,
       );
