@@ -35,4 +35,4 @@ jobs:
             echo "Missing GitHub secret: SUPABASE_DB_URL"
             exit 1
           fi
-          supabase db push --db-url "$SUPABASE_DB_URL" --yes
+          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --yes
