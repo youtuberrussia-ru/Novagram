@@ -100,12 +100,13 @@ class _ProfilePageState extends State<ProfilePage> {
       });
       final ext = image.path.split('.').last.toLowerCase();
       final safeExt = ext == 'png' || ext == 'webp' ? ext : 'jpg';
-      final path = '${user.id}/avatar.$safeExt';
+      final oldPath = _avatarPath;
+      final path = '${user.id}/avatar_${DateTime.now().microsecondsSinceEpoch}.$safeExt';
       await _client.storage.from('profile-avatars').upload(
         path,
         file,
         fileOptions: FileOptions(
-          upsert: true,
+          upsert: false,
           contentType: safeExt == 'png'
               ? 'image/png'
               : safeExt == 'webp'
@@ -115,6 +116,16 @@ class _ProfilePageState extends State<ProfilePage> {
       );
       await _client.from('profiles').update({'avatar_url': path}).eq('id', user.id);
       if (mounted) setState(() => _avatarPath = path);
+      if (oldPath != null &&
+          oldPath.isNotEmpty &&
+          !oldPath.startsWith('http://') &&
+          !oldPath.startsWith('https://')) {
+        try {
+          await _client.storage.from('profile-avatars').remove([oldPath]);
+        } catch (_) {
+          // The new avatar is already saved; old-file cleanup can be retried.
+        }
+      }
     } catch (error) {
       if (mounted) setState(() => _error = 'Не удалось обновить фото: $error');
     } finally {
@@ -197,7 +208,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: ListView(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(16),
                 children: [
                   Center(
                     child: InkWell(
@@ -207,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         alignment: Alignment.center,
                         children: [
                           CircleAvatar(
-                            radius: 48,
+                            radius: 36,
                             backgroundImage: _avatarUrl == null
                                 ? null
                                 : NetworkImage(_avatarUrl!),
@@ -217,7 +228,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           if (_avatarBusy)
                             const CircleAvatar(
-                              radius: 48,
+                              radius: 36,
                               backgroundColor: Colors.black54,
                               child: CircularProgressIndicator(),
                             )
