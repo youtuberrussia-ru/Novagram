@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../profile/presentation/profile_page.dart';
+import '../../admin/presentation/admin_page.dart';
+import '../../../core/widgets/novagram_logo.dart';
 import '../../channels/presentation/channels_page.dart';
 import '../../bots/presentation/bots_page.dart';
 import '../../settings/presentation/settings_page.dart';
@@ -321,10 +323,7 @@ class _ChatListPageState extends State<ChatListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Novagram',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
+        title: const NovagramLogo(showWordmark: true, size: 34),
         actions: [
           IconButton(
             tooltip: 'Найти пользователя',
@@ -362,6 +361,12 @@ class _ChatListPageState extends State<ChatListPage> {
                     MaterialPageRoute(builder: (_) => const SettingsPage()),
                   );
                   break;
+                case 'admin':
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminPage()),
+                  );
+                  break;
               }
             },
             itemBuilder: (_) => const [
@@ -381,6 +386,10 @@ class _ChatListPageState extends State<ChatListPage> {
               PopupMenuItem(value: 'settings', child: ListTile(
                 dense: true, contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.settings_outlined), title: Text('Настройки'))),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'admin', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.admin_panel_settings_outlined), title: Text('Панель управления'))),
             ],
           ),
         ],
