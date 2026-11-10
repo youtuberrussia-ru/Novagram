@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/auth_service.dart';
@@ -19,6 +22,9 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loggingOut = false;
   String? _error;
   String? _email;
+  String? _avatarPath;
+  bool _avatarBusy = false;
+  final _imagePicker = ImagePicker();
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -46,13 +52,14 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final row = await _client
           .from('profiles')
-          .select('display_name, username, bio')
+          .select('display_name, username, bio, avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       if (row != null) {
         _name.text = (row['display_name'] as String?) ?? '';
         _username.text = (row['username'] as String?) ?? '';
         _bio.text = (row['bio'] as String?) ?? '';
+        _avatarPath = row['avatar_url'] as String?;
       } else {
         _name.text = 'Пользователь';
       }
@@ -60,6 +67,58 @@ class _ProfilePageState extends State<ProfilePage> {
       _error = 'Не удалось загрузить профиль: $error';
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String? get _avatarUrl {
+    final path = _avatarPath;
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return _client.storage.from('profile-avatars').getPublicUrl(path);
+  }
+
+  Future<void> _pickAvatar() async {
+    if (_avatarBusy) return;
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+      if (image == null) return;
+      final file = File(image.path);
+      if (await file.length() > 8 * 1024 * 1024) {
+        if (mounted) setState(() => _error = 'Фото должно быть меньше 8 МБ.');
+        return;
+      }
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+      setState(() {
+        _avatarBusy = true;
+        _error = null;
+      });
+      final ext = image.path.split('.').last.toLowerCase();
+      final safeExt = ext == 'png' || ext == 'webp' ? ext : 'jpg';
+      final path = '\${user.id}/avatar.$safeExt';
+      await _client.storage.from('profile-avatars').upload(
+        path,
+        file,
+        fileOptions: FileOptions(
+          upsert: true,
+          contentType: safeExt == 'png'
+              ? 'image/png'
+              : safeExt == 'webp'
+                  ? 'image/webp'
+                  : 'image/jpeg',
+        ),
+      );
+      await _client.from('profiles').update({'avatar_url': path}).eq('id', user.id);
+      if (mounted) setState(() => _avatarPath = path);
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Не удалось обновить фото: $error');
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
     }
   }
 
@@ -95,6 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
         'display_name': name,
         'username': username.isEmpty ? null : username,
         'bio': bio,
+        'avatar_url': _avatarPath,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -139,10 +199,46 @@ class _ProfilePageState extends State<ProfilePage> {
               child: ListView(
                 padding: const EdgeInsets.all(22),
                 children: [
+                  Center(
+                    child: InkWell(
+                      onTap: _avatarBusy ? null : _pickAvatar,
+                      customBorder: const CircleBorder(),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 48,
+                            backgroundImage: _avatarUrl == null
+                                ? null
+                                : NetworkImage(_avatarUrl!),
+                            child: _avatarUrl == null
+                                ? const Icon(Icons.person, size: 46)
+                                : null,
+                          ),
+                          if (_avatarBusy)
+                            const CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.black54,
+                              child: CircularProgressIndicator(),
+                            )
+                          else
+                            const Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: CircleAvatar(
+                                radius: 17,
+                                child: Icon(Icons.camera_alt, size: 18),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   const Center(
-                    child: CircleAvatar(
-                      radius: 42,
-                      child: Icon(Icons.person, size: 42),
+                    child: Text(
+                      'Нажмите на фото, чтобы изменить аватар',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
                     ),
                   ),
                   const SizedBox(height: 12),
