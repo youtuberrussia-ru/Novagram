@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../profile/presentation/profile_page.dart';
 import '../../channels/presentation/channels_page.dart';
+import '../../bots/presentation/bots_page.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../data/chat_repository.dart';
 import '../domain/chat.dart';
@@ -323,6 +324,14 @@ class _ChatListPageState extends State<ChatListPage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Боты',
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const BotsPage()),
+            ),
+            icon: const Icon(Icons.smart_toy_outlined),
+          ),
           IconButton(
             tooltip: 'Каналы',
             onPressed: () => Navigator.push<void>(
