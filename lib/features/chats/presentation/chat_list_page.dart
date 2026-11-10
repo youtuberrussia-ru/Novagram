@@ -50,7 +50,14 @@ class _ChatListPageState extends State<ChatListPage> {
           children: users.map((user) {
             final name = (user['display_name'] as String?) ?? 'Пользователь';
             final username = (user['username'] as String?) ?? '';
-            final avatar = user['avatar_url'] as String?;
+            final avatarPath = user['avatar_url'] as String?;
+            final avatar = avatarPath == null || avatarPath.isEmpty
+                ? null
+                : (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')
+                    ? avatarPath
+                    : Supabase.instance.client.storage
+                        .from('profile-avatars')
+                        .getPublicUrl(avatarPath));
             return ListTile(
               leading: CircleAvatar(
                 backgroundImage: avatar == null || avatar.isEmpty
