@@ -547,6 +547,12 @@ class _ChannelDetailPageState extends State<ChannelDetailPage> {
         'description': data['description'],
       }).eq('id', _channelId);
       if (!mounted) return;
+      setState(() {
+        widget.channel['title'] = data['title'];
+        widget.channel['username'] =
+            data['username']!.isEmpty ? null : data['username'];
+        widget.channel['description'] = data['description'];
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Настройки канала сохранены')),
       );
