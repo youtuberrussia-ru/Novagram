@@ -329,7 +329,9 @@ class _ChatPageState extends State<ChatPage> {
       child: Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
-        constraints: const BoxConstraints(maxWidth: 310),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+        ),
         margin: EdgeInsets.symmetric(
           vertical: _compactMessages ? 2 : 4,
           horizontal: 8,
@@ -423,10 +425,12 @@ class _ChatPageState extends State<ChatPage> {
                 if (messages.isEmpty) {
                   return const Center(child: Text('Начните общение'));
                 }
-                _scheduleScroll();
+                if (!_scroll.hasClients || _scroll.position.extentAfter < 160) {
+                  _scheduleScroll();
+                }
                 return ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
                   itemCount: messages.length,
                   itemBuilder: (context, index) =>
                       _messageBubble(messages[index]),
@@ -437,7 +441,7 @@ class _ChatPageState extends State<ChatPage> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
