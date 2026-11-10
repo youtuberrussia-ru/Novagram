@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../profile/presentation/profile_page.dart';
+import '../../channels/presentation/channels_page.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../data/chat_repository.dart';
 import '../domain/chat.dart';
@@ -322,6 +323,14 @@ class _ChatListPageState extends State<ChatListPage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Каналы',
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const ChannelsPage()),
+            ),
+            icon: const Icon(Icons.campaign_outlined),
+          ),
           IconButton(
             tooltip: 'Создать группу',
             onPressed: _createGroupChat,
