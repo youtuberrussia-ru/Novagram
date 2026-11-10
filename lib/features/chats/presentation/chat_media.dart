@@ -203,27 +203,44 @@ class _ChatMediaComposerState extends State<ChatMediaComposer> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          tooltip: 'Отправить фото',
-          onPressed: _busy || _recording ? null : _pickPhoto,
-          icon: const Icon(Icons.photo_outlined),
+        PopupMenuButton<String>(
+          tooltip: 'Прикрепить',
+          enabled: !_busy && !_recording,
+          onSelected: (value) {
+            if (value == 'photo') _pickPhoto();
+            if (value == 'video') _recordCircle();
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'photo',
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.photo_outlined),
+                title: Text('Фото'),
+              ),
+            ),
+            PopupMenuItem(
+              value: 'video',
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.video_camera_front_outlined),
+                title: Text('Видеокружок'),
+              ),
+            ),
+          ],
+          icon: const Icon(Icons.attach_file_rounded),
         ),
         IconButton(
           tooltip: _recording ? 'Остановить и отправить' : 'Записать голосовое',
-          onPressed: _busy
-              ? null
-              : (_recording ? _stopVoice : _startVoice),
+          onPressed: _busy ? null : (_recording ? _stopVoice : _startVoice),
           color: _recording ? Colors.redAccent : null,
           icon: Icon(_recording ? Icons.stop_circle : Icons.mic_none),
         ),
-        IconButton(
-          tooltip: 'Записать видеокружок',
-          onPressed: _busy || _recording ? null : _recordCircle,
-          icon: const Icon(Icons.video_camera_front_outlined),
-        ),
         if (_busy)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: 4),
             child: SizedBox(
               width: 18,
               height: 18,
