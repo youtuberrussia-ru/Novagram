@@ -123,6 +123,7 @@ class _SettingsPageState extends State<SettingsPage> {
     String? factorId;
     try {
       final factors = await _client.auth.mfa.listFactors();
+      if (!mounted) return;
       if (factors.totp.any((factor) => factor.status == FactorStatus.verified)) {
         final factor = factors.totp.firstWhere(
           (item) => item.status == FactorStatus.verified,
@@ -472,21 +473,21 @@ class _SettingsPageState extends State<SettingsPage> {
                     const LinearProgressIndicator(minHeight: 2),
                 ]),
                 _section('Novagram Shield', Icons.security, [
-                  ListTile(
+                  const ListTile(
                     leading: Icon(Icons.report_gmailerrorred),
                     title: Text('Жалобы на угрозы и доксинг'),
                     subtitle: Text('Система жалоб готовится к подключению модерации'),
                   ),
-                  ListTile(
+                  const ListTile(
                     leading: Icon(Icons.phonelink_lock),
                     title: Text('Управление устройствами'),
                     subtitle: Text('Управление сессиями будет доступно после подключения серверной функции'),
                   ),
                   ListTile(
-                    leading: Icon(Icons.verified_user_outlined),
-                    title: Text('Двухфакторная защита (TOTP)'),
-                    subtitle: Text('Подтверждение входа кодом из приложения-аутентификатора'),
-                    trailing: Icon(Icons.chevron_right),
+                    leading: const Icon(Icons.verified_user_outlined),
+                    title: const Text('Двухфакторная защита (TOTP)'),
+                    subtitle: const Text('Подтверждение входа кодом из приложения-аутентификатора'),
+                    trailing: const Icon(Icons.chevron_right),
                     onTap: _configureTwoFactor,
                   ),
                 ]),
