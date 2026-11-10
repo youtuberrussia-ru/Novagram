@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'chat_media.dart';
@@ -21,6 +22,11 @@ class _ChatPageState extends State<ChatPage> {
   late final Stream<List<Map<String, dynamic>>> _messages;
   bool _sending = false;
   bool _autoScrollPending = false;
+  bool _enterToSend = false;
+  bool _compactMessages = false;
+  bool _showTime = true;
+  bool _confirmDelete = true;
+  bool _hapticFeedback = true;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -28,6 +34,7 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _myId = _client.auth.currentUser!.id;
+    _loadChatSettings();
     _messages = _client
         .from('messages')
         .stream(primaryKey: ['id'])
@@ -41,6 +48,18 @@ class _ChatPageState extends State<ChatPage> {
     _scroll.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadChatSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _enterToSend = prefs.getBool('setting_enter_to_send') ?? false;
+      _compactMessages = prefs.getBool('setting_compact_messages') ?? false;
+      _showTime = prefs.getBool('setting_show_time') ?? true;
+      _confirmDelete = prefs.getBool('setting_confirm_delete') ?? true;
+      _hapticFeedback = prefs.getBool('setting_haptic') ?? true;
+    });
   }
 
   void _scheduleScroll() {
@@ -67,6 +86,7 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
+    if (_hapticFeedback) await HapticFeedback.selectionClick();
     setState(() => _sending = true);
     try {
       await _client.from('messages').insert({
@@ -96,7 +116,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _showMessageActions(Map<String, dynamic> message) async {
     final messageId = message['id'] as String?;
     if (messageId == null) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = !_confirmDelete || await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Удалить сообщение?'),
@@ -154,8 +174,13 @@ class _ChatPageState extends State<ChatPage> {
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
         constraints: const BoxConstraints(maxWidth: 310),
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.fromLTRB(14, 10, 12, 7),
+        margin: EdgeInsets.symmetric(
+          vertical: _compactMessages ? 2 : 4,
+          horizontal: 8,
+        ),
+        padding: _compactMessages
+            ? const EdgeInsets.fromLTRB(11, 7, 10, 5)
+            : const EdgeInsets.fromLTRB(14, 10, 12, 7),
         decoration: BoxDecoration(
           color: mine ? const Color(0xFF5146A8) : const Color(0xFF202640),
           borderRadius: BorderRadius.only(
@@ -174,11 +199,13 @@ class _ChatPageState extends State<ChatPage> {
                   ? Text(body, style: const TextStyle(fontSize: 15))
                   : ChatMediaBubble(path: mediaPath, type: type),
             ),
-            const SizedBox(height: 3),
-            Text(
-              timeLabel,
-              style: const TextStyle(color: Colors.white60, fontSize: 10),
-            ),
+            if (_showTime) ...[
+              const SizedBox(height: 3),
+              Text(
+                timeLabel,
+                style: const TextStyle(color: Colors.white60, fontSize: 10),
+              ),
+            ],
           ],
         ),
       ),
@@ -237,7 +264,10 @@ class _ChatPageState extends State<ChatPage> {
                       minLines: 1,
                       maxLines: 5,
                       textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.newline,
+                      textInputAction: _enterToSend
+                          ? TextInputAction.send
+                          : TextInputAction.newline,
+                      onSubmitted: _enterToSend ? (_) => _send() : null,
                       decoration: const InputDecoration(
                         hintText: 'Сообщение',
                         contentPadding: EdgeInsets.symmetric(
