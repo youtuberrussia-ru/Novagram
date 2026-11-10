@@ -321,50 +321,65 @@ class _ChatListPageState extends State<ChatListPage> {
       appBar: AppBar(
         title: const Text(
           'Novagram',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         actions: [
           IconButton(
-            tooltip: 'Боты',
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const BotsPage()),
-            ),
-            icon: const Icon(Icons.smart_toy_outlined),
-          ),
-          IconButton(
-            tooltip: 'Каналы',
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const ChannelsPage()),
-            ),
-            icon: const Icon(Icons.campaign_outlined),
-          ),
-          IconButton(
-            tooltip: 'Создать группу',
-            onPressed: _createGroupChat,
-            icon: const Icon(Icons.group_add_outlined),
-          ),
-          IconButton(
-            tooltip: 'Найти людей',
+            tooltip: 'Найти пользователя',
             onPressed: _searchUsers,
-            icon: const Icon(Icons.person_add_alt_1),
+            icon: const Icon(Icons.search_rounded),
           ),
-          IconButton(
-            tooltip: 'Профиль',
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfilePage()),
-            ),
-            icon: const Icon(Icons.account_circle_outlined),
-          ),
-          IconButton(
-            tooltip: 'Настройки',
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
-            ),
-            icon: const Icon(Icons.settings_outlined),
+          PopupMenuButton<String>(
+            tooltip: 'Дополнительно',
+            onSelected: (value) {
+              switch (value) {
+                case 'group':
+                  _createGroupChat();
+                  break;
+                case 'channels':
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChannelsPage()),
+                  );
+                  break;
+                case 'bots':
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BotsPage()),
+                  );
+                  break;
+                case 'profile':
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                  break;
+                case 'settings':
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'group', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.group_add_outlined), title: Text('Новая группа'))),
+              PopupMenuItem(value: 'channels', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.campaign_outlined), title: Text('Каналы'))),
+              PopupMenuItem(value: 'bots', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.smart_toy_outlined), title: Text('Боты'))),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'profile', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.account_circle_outlined), title: Text('Профиль'))),
+              PopupMenuItem(value: 'settings', child: ListTile(
+                dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.settings_outlined), title: Text('Настройки'))),
+            ],
           ),
         ],
       ),
@@ -421,24 +436,35 @@ class _ChatListPageState extends State<ChatListPage> {
             return ListView.separated(
               itemCount: chats.length,
               separatorBuilder: (_, __) =>
-                  const Divider(height: 1, indent: 72),
+                  const Divider(height: 1, indent: 66, endIndent: 12),
               itemBuilder: (context, index) {
                 final chat = chats[index];
                 return ListTile(
+                  dense: true,
+                  visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 1),
+                  minLeadingWidth: 48,
                   leading: CircleAvatar(
+                    radius: 25,
                     backgroundColor:
                         Theme.of(context).colorScheme.primaryContainer,
                     child: Icon(
                       chat.isGroup ? Icons.groups : Icons.person,
                     ),
                   ),
-                  title: Text(chat.title),
+                  title: Text(
+                    chat.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
                   subtitle: Text(
                     chat.lastMessage?.isNotEmpty == true
                         ? chat.lastMessage!
                         : (chat.isGroup ? 'Группа' : 'Личный чат'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, color: Colors.white60),
                   ),
                   onTap: () => Navigator.push<void>(
                     context,
